@@ -1,259 +1,344 @@
 <!DOCTYPE html>
 <html lang="da">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Elpriser - Hadsten & Ebeltoft</title>
-    <style>
-        :root {
-            --bg-color: #0f172a;
-            --card-bg: #1e293b;
-            --text-main: #f8fafc;
-            --text-muted: #94a3b8;
-            --accent: #3b82f6;
-            --cheap: #10b981;
-            --avg: #f59e0b;
-            --expensive: #ef4444;
-            --border-col: #334155;
-        }
-        * { box-sizing: border-box; font-family: system-ui, -apple-system, sans-serif; }
-        body { background-color: var(--bg-color); color: var(--text-main); margin: 0; padding: 24px; display: flex; justify-content: center; line-height: 1.5; }
-        .container { max-width: 640px; width: 100%; }
-        
-        header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; flex-wrap: wrap; gap: 16px; border-bottom: 1px solid var(--border-col); padding-bottom: 16px; }
-        h1 { margin: 0; font-size: 1.5rem; font-weight: 600; letter-spacing: -0.02em; }
-        select { background: var(--bg-color); color: var(--text-main); border: 1px solid var(--border-col); padding: 8px 12px; border-radius: 8px; font-size: 1rem; outline: none; cursor: pointer; }
-        select:focus { border-color: var(--accent); }
-
-        .current-price-card { background: var(--card-bg); padding: 32px; border-radius: 16px; text-align: center; margin-bottom: 24px; box-shadow: 0 4px 20px rgba(0,0,0,0.2); }
-        .current-price-card h2 { margin: 0 0 12px 0; font-size: 1.1rem; color: var(--text-muted); font-weight: 500; }
-        .price-huge { font-size: 4rem; font-weight: 700; margin: 0; line-height: 1; letter-spacing: -0.02em; }
-        .price-unit { font-size: 1.2rem; color: var(--text-muted); font-weight: 400; }
-        .breakdown { margin-top: 20px; font-size: 0.95rem; color: var(--text-muted); display: flex; justify-content: center; gap: 24px; flex-wrap: wrap;}
-        .breakdown b { color: var(--text-main); }
-        .error-msg { color: #ef4444; font-size: 0.85rem; margin-top: 10px; word-wrap: break-word; }
-
-        .stats { display: flex; gap: 16px; margin-bottom: 24px; }
-        .stat-card { flex: 1; background: var(--card-bg); padding: 16px; border-radius: 12px; text-align: center; border: 1px solid var(--border-col); }
-        .stat-card .label { color: var(--text-muted); font-size: 0.85rem; margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.05em; }
-        .stat-card .val { font-size: 1.4rem; font-weight: 600; }
-
-        .chart-container { background: var(--card-bg); padding: 24px; border-radius: 16px; margin-bottom: 24px; border: 1px solid var(--border-col); }
-        .chart-container h3 { margin-top: 0; margin-bottom: 20px; font-size: 1.1rem; font-weight: 500; }
-        .bars { display: flex; align-items: flex-end; height: 140px; gap: 3px; }
-        .bar-wrapper { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; height: 100%; }
-        .bar { width: 100%; border-radius: 3px 3px 0 0; transition: height 0.4s ease; }
-        .bar.cheap { background: var(--cheap); }
-        .bar.avg { background: var(--avg); }
-        .bar.expensive { background: var(--expensive); }
-        .bar-time { font-size: 0.65rem; color: var(--text-muted); margin-top: 8px; }
-
-        table { width: 100%; border-collapse: collapse; background: var(--card-bg); border-radius: 12px; overflow: hidden; border: 1px solid var(--border-col); }
-        th, td { padding: 14px 16px; text-align: left; border-bottom: 1px solid var(--border-col); }
-        th { color: var(--text-muted); font-size: 0.85rem; font-weight: 500; text-transform: uppercase; }
-        tr:last-child td { border-bottom: none; }
-        .table-price { font-weight: 600; text-align: right; }
-
-        footer { margin-top: 40px; font-size: 0.85rem; color: var(--text-muted); text-align: center; padding-bottom: 40px; }
-        footer em { color: var(--text-main); font-style: normal; }
-    </style>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Elpris — Hadsten & Ebeltoft</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://nb7kn8w6c8-prog.github.io/Elpriser/elpris.css">
 </head>
 <body>
-    <div class="container">
-        <header>
-            <h1>Elpris time for time</h1>
-            <select id="location-select" onchange="updateUI()">
-                <option value="hadsten">🏡 Elverhøjen, Hadsten (N1)</option>
-                <option value="ebeltoft">🏖️ Adilsvej, Ebeltoft (Konstant)</option>
-            </select>
-        </header>
+<div class="wrap">
 
-        <div class="current-price-card">
-            <h2>Prisen lige nu</h2>
-            <div class="price-huge" id="current-price">Henter...</div>
-            <div class="price-unit" id="price-unit">kr./kWh inkl. moms</div>
-            <div id="error-output" class="error-msg"></div>
-            <div class="breakdown">
-                <span>Ren strøm: <b id="current-spot">--</b></span>
-                <span>Transport & afgifter: <b id="current-tariffs">--</b></span>
-            </div>
-        </div>
-
-        <div class="stats">
-            <div class="stat-card">
-                <div class="label">Billigste time</div>
-                <div class="val" id="min-price">--</div>
-                <div class="label" id="min-time" style="margin-top:4px; font-size:0.75rem">--</div>
-            </div>
-            <div class="stat-card">
-                <div class="label">Dyreste time</div>
-                <div class="val" id="max-price">--</div>
-                <div class="label" id="max-time" style="margin-top:4px; font-size:0.75rem">--</div>
-            </div>
-        </div>
-
-        <div class="chart-container">
-            <h3>Døgnets priser</h3>
-            <div class="bars" id="chart-bars"></div>
-        </div>
-
-        <table>
-            <thead>
-                <tr>
-                    <th>Time</th>
-                    <th>Strøm</th>
-                    <th>Transport</th>
-                    <th style="text-align: right">I alt</th>
-                </tr>
-            </thead>
-            <tbody id="price-tbody"></tbody>
-        </table>
-
-        <footer>
-            Data hentes fra <em>Elspotprices.dk API</em> (DK1).
-        </footer>
+  <header>
+    <h1>Elpris time for time</h1>
+    <div style="margin: 10px 0;">
+      <select id="location-select" onchange="switchLocation()" style="background: #1e293b; color: #f8fafc; border: 1px solid #334155; padding: 8px 12px; border-radius: 8px; font-size: 1rem; cursor: pointer; width: 100%;">
+        <option value="n1">🏡 Elverhøjen, Hadsten (N1 A/S)</option>
+        <option value="konstant">🏖️ Adilsvej, Ebeltoft (Konstant Net)</option>
+      </select>
     </div>
+    <span class="place" id="place">Indlæser…</span>
+    <nav class="daynav" id="daynav"></nav>
+  </header>
 
-    <script>
-        let globalRecords = [];
+  <div class="status">
+    <span id="stamp">Henter priser…</span>
+    <button type="button" id="reload">Hent igen</button>
+  </div>
 
-        async function fetchPrices() {
-            // Vi bruger en fuldstændig åben API-endepunkt, der tillader cross-origin kald direkte fra browsere
-            const apiUrl = "https://www.elspotprices.dk/api/dayprices/current/DK1";
+  <div id="errbox"></div>
 
-            try {
-                const res = await fetch(apiUrl);
-                if (!res.ok) throw new Error("HTTP-fejl: " + res.status);
+  <section class="hero">
+    <div class="lbl" id="heroLbl">Prisen lige nu</div>
+    <p class="big" id="heroPrice">–<span> kr./kWh</span></p>
+    <div class="split"><i class="s" id="splitS" style="width:50%"></i><i class="t" id="splitT" style="width:50%"></i></div>
+    <div class="splitkey">
+      <span><i class="dot s"></i>Strøm <b id="heroSpot">–</b></span>
+      <span><i class="dot t"></i>Transport, afgifter og moms <b id="heroTar">–</b></span>
+    </div>
+  </section>
 
-                const data = await res.json();
-                
-                // Omstrukturerer data til vores interne format
-                globalRecords = (data || []).map(item => {
-                    let rawPrice = item.price !== undefined ? item.price : item.SpotPriceDKK;
-                    // Sikrer korrekt kr./kWh format
-                    let spotDKK = rawPrice > 50 ? rawPrice / 1000 : rawPrice;
-                    return {
-                        HourDK: item.time || item.HourDK,
-                        SpotPriceDKK: spotDKK * 1000
-                    };
-                });
+  <section class="card">
+    <div id="chartHost">
+      <div class="skeleton">Henter døgnets priser…</div>
+    </div>
+  </section>
 
-                if (globalRecords.length === 0) {
-                    throw new Error("Ingen prisdata modtaget.");
-                }
+  <div class="facts">
+    <div class="fact"><div class="k">Billigste time</div><div class="v" id="cheapV">–</div><div class="s" id="cheapS"></div></div>
+    <div class="fact"><div class="k">Dyreste time</div><div class="v" id="expV">–</div><div class="s" id="expS"></div></div>
+  </div>
 
-                updateUI();
-            } catch (e) {
-                document.getElementById('current-price').innerText = "Fejl";
-                document.getElementById('current-price').style.fontSize = "2.5rem";
-                document.getElementById('price-unit').style.display = "none";
-                document.getElementById('error-output').innerText = "Kunne ikke indhente priser: " + e.message;
-            }
+  <div class="card" id="tblCard">
+    <table id="tbl">
+      <caption>Alle priser i kr. pr. kWh inkl. moms</caption>
+      <thead><tr><th>Time</th><th>Strøm</th><th>Transport og afgifter</th><th>I alt</th></tr></thead>
+      <tbody></tbody>
+    </table>
+  </div>
+
+  <details>
+    <summary>Indstillinger og prisposter</summary>
+    <div class="setbody">
+      <div class="setrow">
+        <label for="markup">Eget tillæg fra elselskabet (øre/kWh, ekskl. moms)</label>
+        <input type="number" id="markup" value="0" step="0.1" min="0">
+      </div>
+      <div class="setrow">
+        <input type="checkbox" id="vat" checked>
+        <label for="vat">Vis priser inkl. moms (25 %)</label>
+      </div>
+      <div class="grp">
+        <h3 id="dsoHead">Netselskab</h3>
+        <div id="dsoBox" class="setrow"><label>Henter…</label></div>
+      </div>
+      <div class="grp">
+        <h3>Energinet</h3>
+        <div id="enBox"><div class="setrow"><label>Henter…</label></div></div>
+      </div>
+    </div>
+  </details>
+
+  <footer>
+    Strømpris: Lokal data.json (DK1). Tarif og afgifter: DatahubPricelist.
+  </footer>
+</div>
+
+<script>
+    // Konfigurerer hvilken net-kode der vælges ud fra rullemenuen
+    window.ELPRIS = {
+        net: localStorage.getItem('elpris_net') || 'n1',
+        netNavn: "N1 A/S",
+        gln: "5790000432707",
+        sted: "Hadsten · DK1 · N1, kategori C"
+    };
+
+    // Sæt rullemenuens startværdi
+    document.addEventListener("DOMContentLoaded", () => {
+        const sel = document.getElementById('location-select');
+        if (sel) {
+            sel.value = window.ELPRIS.net;
         }
+    });
 
-        function getTariffs(dateObj, location) {
-            const hour = dateObj.getHours();
-            const month = dateObj.getMonth();
-            const isWinter = month >= 9 || month <= 2; // Okt - Mar
-            
-            let netTariff = 0.14; 
-            if (isWinter) {
-                if (hour >= 17 && hour < 21) netTariff = 1.25; 
-                else if (hour >= 6 && hour < 24) netTariff = 0.43; 
-            } else {
-                if (hour >= 17 && hour < 21) netTariff = 0.56;
-                else if (hour >= 6 && hour < 24) netTariff = 0.21;
-            }
-
-            if (location === 'ebeltoft') {
-                netTariff *= 1.04; // 4% marginal øgning for Konstant i Ebeltoft
-            }
-
-            const elafgift = 0.761; 
-            const energinet = 0.131; 
-            return (netTariff + elafgift + energinet); 
+    function switchLocation() {
+        const val = document.getElementById('location-select').value;
+        localStorage.setItem('elpris_net', val);
+        window.ELPRIS.net = val;
+        if (val === 'konstant') {
+            window.ELPRIS.netNavn = "Konstant Net A/S";
+            window.ELPRIS.gln = "5790000432615";
+            window.ELPRIS.sted = "Ebeltoft · DK1 · Konstant, kategori C";
+        } else {
+            window.ELPRIS.netNavn = "N1 A/S";
+            window.ELPRIS.gln = "5790000432707";
+            window.ELPRIS.sted = "Hadsten · DK1 · N1, kategori C";
         }
+        location.reload();
+    }
+</script>
+<!-- Indlejret maskinrum baseret på brors logik, men uden ekstern .js afhængighed -->
+<script>
+(function () {
+  "use strict";
+  var CFG = window.ELPRIS || {};
+  var NET = CFG.net || "n1";
+  var TZ = "Europe/Copenhagen";
+  var MOMS = 1.25;
+  var STANDARD_POSTER = ["transmissions nettarif", "systemtarif", "elafgift"];
 
-        function updateUI() {
-            if (!globalRecords.length) return;
+  var $ = function (id) { return document.getElementById(id); };
+  function el(tag, cls, txt) {
+    var n = document.createElement(tag);
+    if (cls) n.className = cls;
+    if (txt !== undefined && txt !== null) n.textContent = txt;
+    return n;
+  }
 
-            const location = document.getElementById('location-select').value;
-            const now = new Date();
-            
-            const year = now.getFullYear();
-            const month = String(now.getMonth() + 1).padStart(2, '0');
-            const day = String(now.getDate()).padStart(2, '0');
-            const todayStr = `${year}-${month}-${day}`; 
-            
-            let todaysData = globalRecords
-                .filter(r => r.HourDK && r.HourDK.startsWith(todayStr))
-                .sort((a, b) => new Date(a.HourDK) - new Date(b.HourDK))
-                .map(r => {
-                    const date = new Date(r.HourDK);
-                    const spotExMoms = (r.SpotPriceDKK || 0) / 1000;
-                    const tariffsExMoms = getTariffs(date, location);
-                    return {
-                        hour: date.getHours(),
-                        spotInklMoms: spotExMoms * 1.25,
-                        tariffsInklMoms: tariffsExMoms * 1.25,
-                        totalInklMoms: (spotExMoms + tariffsExMoms) * 1.25
-                    };
-                });
+  var nf2 = new Intl.NumberFormat("da-DK", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  var nf1 = new Intl.NumberFormat("da-DK", { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+  function kr(v) { return nf2.format(v) + " kr."; }
+  function ore(v) { return nf1.format(v * 100) + " øre"; }
+  function hhmm(h) { return (h < 10 ? "0" + h : h) + ":00"; }
+  function nkey(s) { return String(s).trim().toLowerCase(); }
 
-            if (todaysData.length === 0) {
-                document.getElementById('current-price').innerText = "Ingen data";
-                document.getElementById('error-output').innerText = "Venter på at dagens priser frigives.";
-                return;
-            }
+  var state = { data: null, visning: "frem", valgt: null, valgtePoster: null, fejl: false };
 
-            const currentHourData = todaysData.find(d => d.hour === now.getHours()) || todaysData[0];
-            document.getElementById('current-price').innerText = currentHourData.totalInklMoms.toFixed(2);
-            document.getElementById('current-spot').innerText = currentHourData.spotInklMoms.toFixed(2) + ' kr';
-            document.getElementById('current-tariffs').innerText = currentHourData.tariffsInklMoms.toFixed(2) + ' kr';
+  function iDagISO() { return new Intl.DateTimeFormat("sv-SE", { timeZone: TZ }).format(new Date()); }
+  function timeNu() { return parseInt(new Intl.DateTimeFormat("en-GB", { timeZone: TZ, hour: "2-digit", hour12: false }).format(new Date()), 10); }
+  function dagNavn(iso) {
+    var i = iDagISO();
+    if (iso === i) return "I dag";
+    var d = new Date(iso + "T12:00:00Z"), n = new Date(i + "T12:00:00Z");
+    if (Math.round((d - n) / 86400000) === 1) return "I morgen";
+    var s = new Intl.DateTimeFormat("da-DK", { timeZone: "UTC", weekday: "long", day: "numeric", month: "short" }).format(d);
+    return s.charAt(0).toUpperCase() + s.slice(1);
+  }
+  function dage() { return Object.keys(state.data.days).sort(); }
 
-            const min = todaysData.reduce((prev, curr) => prev.totalInklMoms < curr.totalInklMoms ? prev : curr);
-            const max = todaysData.reduce((prev, curr) => prev.totalInklMoms > curr.totalInklMoms ? prev : curr);
-            
-            document.getElementById('min-price').innerText = min.totalInklMoms.toFixed(2) + ' kr';
-            document.getElementById('min-time').innerText = `Kl. ${String(min.hour).padStart(2, '0')}:00`;
-            document.getElementById('max-price').innerText = max.totalInklMoms.toFixed(2) + ' kr';
-            document.getElementById('max-time').innerText = `Kl. ${String(max.hour).padStart(2, '0')}:00`;
+  function visFejl(overskrift, detalje) {
+    state.fejl = true;
+    var box = $("errbox");
+    box.innerHTML = "";
+    var d = el("div", "err");
+    d.appendChild(el("strong", null, overskrift));
+    if (detalje) { d.appendChild(document.createElement("br")); d.appendChild(el("code", null, detalje)); }
+    box.appendChild(d);
+    $("chartHost").innerHTML = "";
+    $("tblCard").hidden = true;
+    $("stamp").textContent = "Ingen gyldige priser";
+  }
 
-            const chart = document.getElementById('chart-bars');
-            chart.innerHTML = '';
-            const maxTotal = Math.max(...todaysData.map(d => d.totalInklMoms));
-            
-            todaysData.forEach((d, index) => {
-                const heightPct = (d.totalInklMoms / maxTotal) * 100;
-                let colorClass = 'avg';
-                if (d.totalInklMoms <= min.totalInklMoms * 1.2) colorClass = 'cheap';
-                if (d.totalInklMoms >= max.totalInklMoms * 0.85) colorClass = 'expensive';
-                
-                const showTime = index % 3 === 0 ? String(d.hour).padStart(2, '0') : '';
-                
-                chart.innerHTML += `
-                    <div class="bar-wrapper">
-                        <div class="bar ${colorClass}" style="height: ${heightPct}%"></div>
-                        <div class="bar-time">${showTime}</div>
-                    </div>
-                `;
-            });
+  function momsFaktor() { return $("vat").checked ? MOMS : 1; }
+  function tillaeg() {
+    var v = parseFloat($("markup").value);
+    return isFinite(v) && v > 0 ? v / 100 : 0;
+  }
 
-            const tbody = document.getElementById('price-tbody');
-            tbody.innerHTML = '';
-            todaysData.forEach(d => {
-                const tr = document.createElement('tr');
-                tr.innerHTML = `
-                    <td>${String(d.hour).padStart(2, '0')}:00</td>
-                    <td>${d.spotInklMoms.toFixed(2)} kr</td>
-                    <td>${d.tariffsInklMoms.toFixed(2)} kr</td>
-                    <td class="table-price">${d.totalInklMoms.toFixed(2)} kr</td>
-                `;
-                tbody.appendChild(tr);
-            });
-        }
+  function enValgte(dag) { return (dag.energinet || []).filter(function (p) { return state.valgtePoster.has(nkey(p.note)); }); }
+  
+  function time(iso, h) {
+    var dag = state.data.days[iso];
+    var spot = dag.spot ? dag.spot[h] : null;
+    if (spot === null || spot === undefined) return null;
+    var dso = dag.dso ? dag.dso[NET] : null;
+    if (!dso) return null;
+    var m = momsFaktor(), t = tillaeg();
+    var enSum = 0;
+    enValgte(dag).forEach(function (p) { enSum += (p.prices[h] || 0); });
+    var stroem = (spot + t) * m;
+    var tarif = ((dso.prices[h] || 0) + enSum) * m;
+    return { iso: iso, h: h, spot: spot, dso: dso.prices[h] || 0, en: enSum, stroem: stroem, tarif: tarif, total: stroem + tarif };
+  }
 
-        fetchPrices();
-    </script>
+  function doegn(iso) { var ud = []; for (var h = 0; h < 24; h++) ud.push(time(iso, h)); return ud; }
+  function fremITiden() {
+    var iDag = iDagISO(), nu = timeNu(), ud = [];
+    dage().forEach(function (iso) {
+      if (iso < iDag) return;
+      for (var h = (iso === iDag ? nu : 0); h < 24; h++) {
+        var r = time(iso, h);
+        if (r) ud.push(r);
+      }
+    });
+    return ud;
+  }
+
+  function tegnHero() {
+    var iDag = iDagISO(), nu = timeNu();
+    var r = state.data.days[iDag] ? time(iDag, nu) : null;
+    if (!r) {
+      var f = fremITiden();
+      r = f.length ? f[0] : null;
+      $("heroLbl").textContent = r ? dagNavn(r.iso) + " " + hhmm(r.h) + "–" + hhmm((r.h + 1) % 24) : "Ingen pris";
+    } else {
+      $("heroLbl").textContent = "Prisen lige nu (" + hhmm(nu) + "–" + hhmm((nu + 1) % 24) + ")";
+    }
+    if (!r) { $("heroPrice").firstChild.nodeValue = "–"; return; }
+    $("heroPrice").firstChild.nodeValue = nf2.format(r.total);
+    $("heroSpot").textContent = kr(r.stroem);
+    $("heroTar").textContent = kr(r.tarif);
+    var sum = Math.abs(r.stroem) + Math.abs(r.tarif);
+    var p = sum > 0 ? (Math.abs(r.stroem) / sum) * 100 : 50;
+    $("splitS").style.width = p.toFixed(1) + "%";
+    $("splitT").style.width = (100 - p).toFixed(1) + "%";
+  }
+
+  function tegnFrem() {
+    var host = $("chartHost");
+    host.innerHTML = "";
+    $("tblCard").hidden = true;
+    var raekker = fremITiden();
+    if (!raekker.length) { host.appendChild(el("div", "skeleton", "Ingen priser frem i tiden")); return; }
+    var maxT = Math.max.apply(null, raekker.map(function (r) { return r.total; }));
+    var skala = maxT > 0 ? maxT : 1;
+    var billigst = raekker.reduce(function (a, x) { return x.total < a.total ? x : a; });
+    var iDag = iDagISO(), nu = timeNu();
+    var wrap = el("div", "rows");
+    var sidsteDag = null;
+    raekker.forEach(function (r) {
+      if (r.iso !== sidsteDag) {
+        wrap.appendChild(el("div", "daybreak", dagNavn(r.iso)));
+        sidsteDag = r.iso;
+      }
+      var rw = el("button", "rrow");
+      rw.type = "button";
+      rw.appendChild(el("span", "t", hhmm(r.h)));
+      var track = el("span", "track");
+      var bs = el("i", "bs"), bt = el("i", "bt");
+      bs.style.width = ((Math.max(r.stroem, 0) / skala) * 100).toFixed(2) + "%";
+      bt.style.width = ((Math.max(r.tarif, 0) / skala) * 100).toFixed(2) + "%";
+      track.appendChild(bs); track.appendChild(bt);
+      rw.appendChild(track);
+      rw.appendChild(el("span", "v", nf2.format(r.total)));
+      if (r.iso === iDag && r.h === nu) rw.classList.add("now");
+      if (r === billigst) rw.classList.add("cheap");
+      wrap.appendChild(rw);
+    });
+    host.appendChild(wrap);
+    host.appendChild(detaljelinje(raekker));
+    noegletal(raekker);
+  }
+
+  function detaljelinje(kandidater) {
+    var r = kandidater[0];
+    var d = el("div", "detail");
+    d.appendChild(el("span", "h", dagNavn(r.iso) + " " + hhmm(r.h) + "–" + hhmm((r.h + 1) % 24)));
+    d.appendChild(el("span", null, "Strøm " + kr(r.stroem)));
+    d.appendChild(el("span", null, "Transport og afgifter " + kr(r.tarif)));
+    d.appendChild(el("span", "tot", kr(r.total)));
+    return d;
+  }
+
+  function noegletal(rows) {
+    if (!rows.length) return;
+    var b = rows.reduce(function (a, x) { return x.total < a.total ? x : a; });
+    var d = rows.reduce(function (a, x) { return x.total > a.total ? x : a; });
+    $("cheapV").textContent = kr(b.total);
+    $("cheapS").textContent = dagNavn(b.iso) + " " + hhmm(b.h) + "–" + hhmm((b.h + 1) % 24);
+    $("expV").textContent = kr(d.total);
+    $("expS").textContent = dagNavn(d.iso) + " " + hhmm(d.h) + "–" + hhmm((d.h + 1) % 24);
+  }
+
+  function tegnDagnav() {
+    var nav = $("daynav");
+    nav.innerHTML = "";
+    var b = el("button", null, "Frem i tiden");
+    b.type = "button";
+    nav.appendChild(b);
+  }
+
+  function tegnPoster(iso) {
+    var dag = state.data.days[iso];
+    var m = momsFaktor();
+    $("dsoHead").textContent = CFG.netNavn;
+    var box = $("dsoBox");
+    box.innerHTML = "";
+    var dso = dag.dso ? dag.dso[NET] : null;
+    if (dso) {
+      box.appendChild(el("label", null, dso.note));
+    }
+  }
+
+  function tegn() {
+    var liste = dage();
+    var refDag = liste[0];
+    var dag = state.data.days[refDag];
+    if (!dag) return;
+    state.fejl = false;
+    $("errbox").innerHTML = "";
+    tegnDagnav();
+    tegnHero();
+    tegnFrem();
+    tegnPoster(refDag);
+    $("stamp").textContent = "Opdateret fra data.json";
+  }
+
+  function hent() {
+    $("stamp").textContent = "Henter priser…";
+    fetch("data.json?t=" + Date.now(), { cache: "no-store" })
+      .then(function (r) { if (!r.ok) throw new Error("Kunne ikke finde data.json"); return r.json(); })
+      .then(function (j) {
+        state.data = j;
+        state.visning = "frem";
+        state.valgt = null;
+        state.valgtePoster = new Set(STANDARD_POSTER);
+        $("place").textContent = CFG.sted;
+        tegn();
+      })
+      .catch(function (e) { visFejl("Fejl ved indlæsning af data.json", e.message); });
+  }
+
+  document.addEventListener("DOMContentLoaded", function () {
+    $("reload").addEventListener("click", hent);
+    $("markup").addEventListener("input", function () { if (state.data) tegn(); });
+    $("vat").addEventListener("change", function () { if (state.data) tegn(); });
+    hent();
+  });
+})();
+</script>
 </body>
 </html>
