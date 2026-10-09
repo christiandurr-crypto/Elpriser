@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="da">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Strømpriser - Elverhøjen & Adilsvej</title>
+    <style>
+        :root {
+            --bg-color: #0f172a;
+            --card-bg: #1e293b;
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
+            --accent: #3b82f6;
+            --cheap: #10b981;
+            --avg: #f59e0b;
+            --expensive: #ef4444;
+            --border-col: #334155;
+        }
+        * { box-sizing: border-box; font-family: system-ui, -apple-system, sans-serif; }
+        body { background-color: var(--bg-color); color: var(--text-main); margin: 0; padding: 24px; display: flex; justify-content: center; line-height: 1.5; }
+        .container { max-width: 640px; width: 100%; }
+        
+        header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; flex-wrap: wrap; gap: 16px; border-bottom: 1px solid var(--border-col); padding-bottom: 16px; }
+        h1 { margin: 0; font-size: 1.5rem; font-weight: 600; letter-spacing: -0.02em; }
+        select { background: var(--bg-color); color: var(--text-main); border: 1px solid var(--border-col); padding: 8px 12px; border-radius: 8px; font-size: 1rem; outline: none; cursor: pointer; }
+        select:focus { border-color: var(--accent); }
+
+        .current-price-card { background: var(--card-bg); padding: 32px; border-radius: 16px; text-align: center; margin-bottom: 24px; box-shadow: 0 4px 20px rgba(0,0,0,0.2); }
+        .current-price-card h2 { margin: 0 0 12px 0; font-size: 1.1rem; color: var(--text-muted); font-weight: 500; }
+        .price-huge { font-size: 4rem; font-weight: 700; margin: 0; line-height: 1; letter-spacing: -0.02em; }
+        .price-unit { font-size: 1.2rem; color: var(--text-muted); font-weight: 400; }
+        .breakdown { margin-top: 20px; font-size: 0.95rem; color: var(--text-muted); display: flex; justify-content: center; gap: 24px; flex-wrap: wrap;}
+        .breakdown b { color: var(--text-main); }
+        .error-msg { color: #ef4444; font-size: 0.85rem; margin-top: 10px; max-width: 100%; word-wrap: break-word; }
+
+        .stats { display: flex; gap: 16px; margin-bottom: 24px; }
+        .stat-card { flex: 1; background: var(--card-bg); padding: 16px; border-radius: 12px; text-align: center; border: 1px solid var(--border-col); }
+        .stat-card .label { color: var(--text-muted); font-size: 0.85rem; margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.05em; }
+        .stat-card .val { font-size: 1.4rem; font-weight: 600; }
+
+        .chart-container { background: var(--card-bg); padding: 24px; border-radius: 16px; margin-bottom: 24px; border: 1px solid var(--border-col); }
+        .chart-container h3 { margin-top: 0; margin-bottom: 20px; font-size: 1.1rem; font-weight: 500; }
+        .bars { display: flex; align-items: flex-end; height: 140px; gap: 3px; }
+        .bar-wrapper { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; height: 100%; }
+        .bar { width: 100%; border-radius: 3px 3px 0 0; transition: height 0.4s ease; }
+        .bar.cheap { background: var(--cheap); }
+        .bar.avg { background: var(--avg); }
+        .bar.expensive { background: var(--expensive); }
+        .bar-time { font-size: 0.65rem; color: var(--text-muted); margin-top: 8px; }
+
+        table { width: 100%; border-collapse: collapse; background: var(--card-bg); border-radius: 12px; overflow: hidden; border: 1px solid var(--border-col); }
+        th, td { padding: 14px 16px; text-align: left; border-bottom: 1px solid var(--border-col); }
+        th { color: var(--text-muted); font-size: 0.85rem; font-weight: 500; text-transform: uppercase; }
+        tr:last-child td { border-bottom: none; }
+        .table-price { font-weight: 600; text-align: right; }
+
+        footer { margin-top: 40px; font-size: 0.85rem; color: var(--text-muted); text-align: center; padding-bottom: 40px; }
+        footer em { color: var(--text-main); font-style: normal; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Elpris time for time</h1>
+            <select id="location-select" onchange="updateUI()">
+                <option value="hadsten">🏡 Elverhøjen 82, Hadsten</option>
+                <option value="ebeltoft">🏖️ Adilsvej 21C, Ebeltoft</option>
+            </select>
+        </header>
+
+        <div class="current-price-card">
+            <h2>Prisen lige nu</h2>
+            <div class="price-huge" id="current-price">Henter...</div>
+            <div class="price-unit" id="price-unit">kr./kWh inkl. moms</div>
+            <div id="error-output" class="error-msg"></div>
+            <div class="breakdown">
+                <span>Ren strøm: <b id="current-spot">--</b></span>
+                <span>Transport & afgifter: <b id="current-tariffs">--</b></span>
+            </div>
+        </div>
+
+        <div class="stats">
+            <div class="stat-card">
+                <div class="label">Billigste time</div>
+                <div class="val" id="min-price">--</div>
+                <div class="label" id="min-time" style="margin-top:4px; font-size:0.75rem">--</div>
+            </div>
+            <div class="stat-card">
+                <div class="label">Dyreste time</div>
+                <div class="val" id="max-price">--</div>
+                <div class="label" id="max-time" style="margin-top:4px; font-size:0.75rem">--</div>
+            </div>
+        </div>
+
+        <div class="chart-container">
+            <h3>Døgnets priser</h3>
+            <div class="bars" id="chart-bars"></div>
+        </div>
+
+        <table>
+            <thead>
+                <tr>
+                    <th>Time</th>
+                    <th>Strøm</th>
+                    <th>Transport</th>
+                    <th style="text-align: right">I alt</th>
+                </tr>
+            </thead>
+            <tbody id="price-tbody"></tbody>
+        </table>
+    </div>
+
+    <script>
+        // Vi pakker kaldet ind i allorigins.win for at gennemtvinge CORS-godkendelse til Safari
+        const TARGET_URL = encodeURIComponent("https://api.energidataservice.dk/dataset/Elspotprices?limit=400");
+        const API_URL = `https://api.allorigins.win/raw?url=${TARGET_URL}`;
+        
+        let globalRecords = [];
+
+        async function fetchPrices() {
+            try {
+                const res = await fetch(API_URL);
+                if (!res.ok) {
+                    throw new Error("Server svarede med status: " + res.status);
+                }
+                const json = await res.json();
+                
+                // Filtrerer for DK1 manuelt
+                globalRecords = (json.records || []).filter(r => r.PriceArea === "DK1");
+                
+                updateUI();
+            } catch (e) {
+                // Udskriver den specifikke fejl på skærmen
+                document.getElementById('current-price').innerText = "Fejl";
+                document.getElementById('current-price').style.fontSize = "2.5rem";
+                document.getElementById('price-unit').style.display = "none";
+                document.getElementById('error-output').innerText = "Systemfejl: " + e.name + " - " + e.message;
+            }
+        }
+
+        function getTariffs(dateObj, location) {
+            const hour = dateObj.getHours();
+            const month = dateObj.getMonth();
+            const isWinter = month >= 9 || month <= 2; // Okt - Mar
+            
+            let netTariff = 0.14; 
+            if (isWinter) {
+                if (hour >= 17 && hour < 21) netTariff = 1.25; 
+                else if (hour >= 6 && hour < 24) netTariff = 0.43; 
+            } else {
+                if (hour >= 17 && hour < 21) netTariff = 0.56;
+                else if (hour >= 6 && hour < 24) netTariff = 0.21;
+            }
+
+            // Marginal difference for Konstant (Ebeltoft) vs N1/Dinel (Hadsten)
+            if (location === 'ebeltoft') netTariff *= 1.04; 
+
+            const elafgift = 0.761; 
+            const energinet = 0.131; 
+            return (netTariff + elafgift + energinet); 
+        }
+
+        function updateUI() {
+            if (!globalRecords.length) {
+                document.getElementById('current-price').innerText = "Ingen data";
+                document.getElementById('error-output').innerText = "Kunne ikke finde priser for DK1 i dag.";
+                return;
+            }
+
+            const location = document.getElementById('location-select').value;
+            const now = new Date();
+            
+            const year = now.getFullYear();
+            const month = String(now.getMonth() + 1).padStart(2, '0');
+            const day = String(now.getDate()).padStart(2, '0');
+            const todayStr = `${year}-${month}-${day}`; 
+            
+            let todaysData = globalRecords
+                .filter(r => r.HourDK && r.HourDK.startsWith(todayStr))
+                .sort((a, b) => new Date(a.HourDK) - new Date(b.HourDK))
+                .map(r => {
+                    const date = new Date(r.HourDK);
+                    const spotExMoms = (r.SpotPriceDKK || 0) / 1000;
+                    const tariffsExMoms = getTariffs(date, location);
+                    return {
+                        hour: date.getHours(),
+                        spotInklMoms: spotExMoms * 1.25,
+                        tariffsInklMoms: tariffsExMoms * 1.25,
+                        totalInklMoms: (spotExMoms + tariffsExMoms) * 1.25
+                    };
+                });
+
+            if(todaysData.length === 0) {
+                document.getElementById('current-price').innerText = "Ingen data";
+                document.getElementById('current-price').style.fontSize = "2.5rem";
+                document.getElementById('error-output').innerText = "Der er ikke frigivet data for denne dato endnu (" + todayStr + ").";
+                return;
+            }
+
+            const currentHourData = todaysData.find(d => d.hour === now.getHours()) || todaysData[0];
+            document.getElementById('current-price').innerText = currentHourData.totalInklMoms.toFixed(2);
+            document.getElementById('current-spot').innerText = currentHourData.spotInklMoms.toFixed(2) + ' kr';
+            document.getElementById('current-tariffs').innerText = currentHourData.tariffsInklMoms.toFixed(2) + ' kr';
+
+            const min = todaysData.reduce((prev, curr) => prev.totalInklMoms < curr.totalInklMoms ? prev : curr);
+            const max = todaysData.reduce((prev, curr) => prev.totalInklMoms > curr.totalInklMoms ? prev : curr);
+            
+            document.getElementById('min-price').innerText = min.totalInklMoms.toFixed(2) + ' kr';
+            document.getElementById('min-time').innerText = `Kl. ${String(min.hour).padStart(2, '0')}:00`;
+            document.getElementById('max-price').innerText = max.totalInklMoms.toFixed(2) + ' kr';
+            document.getElementById('max-time').innerText = `Kl. ${String(max.hour).padStart(2, '0')}:00`;
+
+            const chart = document.getElementById('chart-bars');
+            chart.innerHTML = '';
+            const maxTotal = Math.max(...todaysData.map(d => d.totalInklMoms));
+            
+            todaysData.forEach((d, index) => {
+                const heightPct = (d.totalInklMoms / maxTotal) * 100;
+                let colorClass = 'avg';
+                if (d.totalInklMoms <= min.totalInklMoms * 1.2) colorClass = 'cheap';
+                if (d.totalInklMoms >= max.totalInklMoms * 0.85) colorClass = 'expensive';
+                
+                const showTime = index % 3 === 0 ? String(d.hour).padStart(2, '0') : '';
+                
+                chart.innerHTML += `
+                    <div class="bar-wrapper">
+                        <div class="bar ${colorClass}" style="height: ${heightPct}%"></div>
+                        <div class="bar-time">${showTime}</div>
+                    </div>
+                `;
+            });
+
+            const tbody = document.getElementById('price-tbody');
+            tbody.innerHTML = '';
+            todaysData.forEach(d => {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td>${String(d.hour).padStart(2, '0')}:00</td>
+                    <td>${d.spotInklMoms.toFixed(2)} kr</td>
+                    <td>${d.tariffsInklMoms.toFixed(2)} kr</td>
+                    <td class="table-price">${d.totalInklMoms.toFixed(2)} kr</td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        fetchPrices();
+    </script>
+</body>
+</html>
