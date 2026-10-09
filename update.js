@@ -4,8 +4,8 @@ async function fetchPrices() {
     try {
         console.log("Henter data for DK1 fra Energi Data Service...");
         
-        // Henter de seneste poster for DK1 uden komplekse JSON-filtre i URL'en
-        const url = "https://api.energidataservice.dk/dataset/DayAheadPrices?limit=48&sort=HourDK%20DESC";
+        // Henter poster uden sort-parameter i URL'en for at undgå HTTP 400-fejl
+        const url = "https://api.energidataservice.dk/dataset/DayAheadPrices?limit=100";
         const res = await fetch(url);
         
         if (!res.ok) {
@@ -20,7 +20,6 @@ async function fetchPrices() {
             throw new Error("Ingen DK1-poster fundet i datasættet.");
         }
         
-        // Finder den korrekte tids-streng (sikrer mod ændringer i API-feltnavne)
         const getHourStr = (r) => r.HourDK || r.HourUTC || "";
         
         const dates = [...new Set(records.map(r => getHourStr(r).slice(0, 10)))].filter(d => d.length === 10);
