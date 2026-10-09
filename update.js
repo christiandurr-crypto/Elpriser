@@ -2,11 +2,28 @@ const fs = require("fs");
 
 async function fetchPrices() {
     try {
-        const res = await fetch("https://api.energidataservice.dk/dataset/DayAheadPrices?limit=48&sort=HourUTC%20DESC");
+        const today = new Date().toISOString().slice(0, 10);
+        console.log("Henter data for DK1 fra Energi Data Service...");
+        
+        // Vi henter dagsaktuelle data uden begrænsninger, der kan trigge fejl
+        const url = "https://api.energidataservice.dk/dataset/DayAheadPrices?filter=" + encodeURIComponent(JSON.stringify({PriceArea: ["DK1"]})) + "&limit=100";
+        
+        const res = await fetch(url);
+        
+        if (!res.ok) {
+            const errText = await res.text();
+            throw new Error(`HTTP fejl: ${res.status} - ${errText}`);
+        }
+        
         const json = await res.json();
         const records = (json.records || []).filter(r => r.PriceArea === "DK1");
         
+        if (records.length === 0) {
+            throw new Error("Ingen DK1-poster fundet i datasættet.");
+        }
+        
         const dates = [...new Set(records.map(r => r.HourDK.slice(0, 10)))];
+        console.log("Fundne datoer:", dates);
         
         let daysObj = {};
         dates.forEach(d => {
@@ -45,7 +62,7 @@ async function fetchPrices() {
         fs.writeFileSync("data.json", JSON.stringify(finalData, null, 2));
         console.log("data.json opdateret med succes!");
     } catch (err) {
-        console.error("Fejl under hentning:", err);
+        console.error("DETALJERET FEJL I SCRIPT:", err.message);
         process.exit(1);
     }
 }
