@@ -110,7 +110,7 @@
         </table>
 
         <footer>
-            Data hentes via proxy fra <em>Energi Data Service</em> (DayAheadPrices).
+            Data hentes fra <em>Elspotprices.dk API</em> (DK1).
         </footer>
     </div>
 
@@ -118,19 +118,28 @@
         let globalRecords = [];
 
         async function fetchPrices() {
-            const apiUrl = "https://api.energidataservice.dk/dataset/DayAheadPrices?limit=200";
-            // Bruger allorigins, som er en gratis og åben proxy uden krav om API-nøgle
-            const proxyUrl = "https://api.allorigins.win/raw?url=" + encodeURIComponent(apiUrl);
+            // Vi bruger en fuldstændig åben API-endepunkt, der tillader cross-origin kald direkte fra browsere
+            const apiUrl = "https://www.elspotprices.dk/api/dayprices/current/DK1";
 
             try {
-                const res = await fetch(proxyUrl);
+                const res = await fetch(apiUrl);
                 if (!res.ok) throw new Error("HTTP-fejl: " + res.status);
 
                 const data = await res.json();
-                globalRecords = (data.records || []).filter(r => r.PriceArea === "DK1");
+                
+                // Omstrukturerer data til vores interne format
+                globalRecords = (data || []).map(item => {
+                    let rawPrice = item.price !== undefined ? item.price : item.SpotPriceDKK;
+                    // Sikrer korrekt kr./kWh format
+                    let spotDKK = rawPrice > 50 ? rawPrice / 1000 : rawPrice;
+                    return {
+                        HourDK: item.time || item.HourDK,
+                        SpotPriceDKK: spotDKK * 1000
+                    };
+                });
 
                 if (globalRecords.length === 0) {
-                    throw new Error("Ingen DK1-data fundet.");
+                    throw new Error("Ingen prisdata modtaget.");
                 }
 
                 updateUI();
@@ -147,19 +156,17 @@
             const month = dateObj.getMonth();
             const isWinter = month >= 9 || month <= 2; // Okt - Mar
             
-            // Tarifmodel 3.0 (C-tarif)
             let netTariff = 0.14; 
             if (isWinter) {
-                if (hour >= 17 && hour < 21) netTariff = 1.25; // Spidslast
-                else if (hour >= 6 && hour < 24) netTariff = 0.43; // Højlast
+                if (hour >= 17 && hour < 21) netTariff = 1.25; 
+                else if (hour >= 6 && hour < 24) netTariff = 0.43; 
             } else {
                 if (hour >= 17 && hour < 21) netTariff = 0.56;
                 else if (hour >= 6 && hour < 24) netTariff = 0.21;
             }
 
-            // Ebeltoft (Konstant) har ca. 4% højere nettarif end Hadsten (N1)
             if (location === 'ebeltoft') {
-                netTariff *= 1.04; 
+                netTariff *= 1.04; // 4% marginal øgning for Konstant i Ebeltoft
             }
 
             const elafgift = 0.761; 
@@ -195,7 +202,7 @@
 
             if (todaysData.length === 0) {
                 document.getElementById('current-price').innerText = "Ingen data";
-                document.getElementById('error-output').innerText = "Venter på at dagens priser frigives af Energi Data Service.";
+                document.getElementById('error-output').innerText = "Venter på at dagens priser frigives.";
                 return;
             }
 
