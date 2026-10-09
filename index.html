@@ -115,23 +115,21 @@
     </div>
 
     <script>
-        // Vi bruger AllOrigins proxy også på GitHub for fuldstændig at omgå eventuelle browser-restriktioner mod Energinet API'et
-        const TARGET_URL = encodeURIComponent("https://api.energidataservice.dk/dataset/DayAheadPrices?limit=200");
-        const API_URL = `https://api.allorigins.win/raw?url=${TARGET_URL}`;
+        // Direkte og rent kald til Energinet uden proxy
+        const API_URL = "https://api.energidataservice.dk/dataset/DayAheadPrices?limit=200";
         
         let globalRecords = [];
 
         async function fetchPrices() {
             try {
                 const res = await fetch(API_URL);
-                if (!res.ok) throw new Error("HTTP " + res.status);
+                if (!res.ok) throw new Error("HTTP status " + res.status);
                 
                 const data = await res.json();
-                // Håndterer både direkte JSON-array og AllOrigins indpakning
                 globalRecords = (data.records || []).filter(r => r.PriceArea === "DK1");
                 
                 if (globalRecords.length === 0) {
-                    throw new Error("Ingen DK1-data fundet i datasættet.");
+                    throw new Error("Ingen DK1-data fundet.");
                 }
                 
                 updateUI();
@@ -192,7 +190,7 @@
 
             if(todaysData.length === 0) {
                 document.getElementById('current-price').innerText = "Ingen data";
-                document.getElementById('error-output').innerText = "Venter på at dagens/morgendagens priser frigives af Energi Data Service.";
+                document.getElementById('error-output').innerText = "Venter på at dagens priser frigives af Energi Data Service.";
                 return;
             }
 
