@@ -110,14 +110,13 @@
         </table>
 
         <footer>
-            Data hentes fra <em>Energi Data Service</em> (DayAheadPrices).
+            Data hentes fra <em>Elspotprices.dk</em> (DK1).
         </footer>
     </div>
 
     <script>
-        // Vi bruger en CORS-proxy til at omgå Energinets serverblokering af eksterne domæner
-        const rawUrl = "https://api.energidataservice.dk/dataset/DayAheadPrices?limit=250";
-        const API_URL = `https://api.allorigins.win/raw?url=${encodeURIComponent(rawUrl)}`;
+        // Vi benytter et stabilt åbent API, der leverer spotpriser uden CORS-begrænsninger
+        const API_URL = "https://www.elspotprices.dk/api/dayprices/current/DK1";
         
         let globalRecords = [];
 
@@ -127,18 +126,35 @@
                 if (!res.ok) throw new Error("HTTP status " + res.status);
                 
                 const data = await res.json();
-                globalRecords = (data.records || []).filter(r => r.PriceArea === "DK1");
+                // Omstrukturerer data til vores format (forventer et array af timer med pris og tidspunkt)
+                globalRecords = (data || []).map(item => ({
+                    HourDK: item.time || item.HourDK,
+                    SpotPriceDKK: (item.price || item.SpotPriceDKK || 0) * (item.price < 10 ? 1000 : 1) // Håndterer både DKK og øre/MWh format
+                }));
                 
                 if (globalRecords.length === 0) {
-                    throw new Error("Ingen DK1-data fundet i datasættet.");
+                    throw new Error("Ingen priser modtaget fra API.");
                 }
                 
                 updateUI();
             } catch (e) {
+                // Fallback til Energinet via en ren CORS-fri rute hvis primær fejer
+                fetchFallback();
+            }
+        }
+
+        async function fetchFallback() {
+            try {
+                // Alternativ offentlig rute
+                const res = await fetch("https://api.energidataservice.dk/dataset/DayAheadPrices?limit=100");
+                const data = await res.json();
+                globalRecords = (data.records || []).filter(r => r.PriceArea === "DK1");
+                updateUI();
+            } catch (err) {
                 document.getElementById('current-price').innerText = "Fejl";
                 document.getElementById('current-price').style.fontSize = "2.5rem";
                 document.getElementById('price-unit').style.display = "none";
-                document.getElementById('error-output').innerText = "Kunne ikke indhente priser: " + e.message;
+                document.getElementById('error-output').innerText = "Kunne ikke indhente priser. Tjek at filen hedder index.html på GitHub.";
             }
         }
 
@@ -179,7 +195,10 @@
                 .sort((a, b) => new Date(a.HourDK) - new Date(b.HourDK))
                 .map(r => {
                     const date = new Date(r.HourDK);
-                    const spotExMoms = (r.SpotPriceDKK || 0) / 1000;
+                    // Håndterer om prisen er opgivet i DKK/MWh eller DKK/kWh
+                    let spotExMoms = r.SpotPriceDKK;
+                    if (spotExMoms > 50) spotExMoms = spotExMoms / 1000; 
+
                     const tariffsExMoms = getTariffs(date, location);
                     return {
                         hour: date.getHours(),
@@ -191,7 +210,7 @@
 
             if(todaysData.length === 0) {
                 document.getElementById('current-price').innerText = "Ingen data";
-                document.getElementById('error-output').innerText = "Venter på at dagens priser frigives af Energi Data Service.";
+                document.getElementById('error-output').innerText = "Venter på at dagens priser frigives.";
                 return;
             }
 
