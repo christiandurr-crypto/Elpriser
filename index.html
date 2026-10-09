@@ -108,12 +108,15 @@
             </thead>
             <tbody id="price-tbody"></tbody>
         </table>
+
+        <footer>
+            Data hentes fra <em>Energi Data Service</em> (DayAheadPrices).
+        </footer>
     </div>
 
     <script>
-        // Vi pakker kaldet ind i allorigins.win for at gennemtvinge CORS-godkendelse til Safari
-        const TARGET_URL = encodeURIComponent("https://api.energidataservice.dk/dataset/Elspotprices?limit=400");
-        const API_URL = `https://api.allorigins.win/raw?url=${TARGET_URL}`;
+        // RTTET TIL DET AKTIVE OG NYE DATASÆT: DayAheadPrices
+        const API_URL = "https://api.energidataservice.dk/dataset/DayAheadPrices?limit=200";
         
         let globalRecords = [];
 
@@ -125,16 +128,13 @@
                 }
                 const json = await res.json();
                 
-                // Filtrerer for DK1 manuelt
                 globalRecords = (json.records || []).filter(r => r.PriceArea === "DK1");
-                
                 updateUI();
             } catch (e) {
-                // Udskriver den specifikke fejl på skærmen
                 document.getElementById('current-price').innerText = "Fejl";
                 document.getElementById('current-price').style.fontSize = "2.5rem";
                 document.getElementById('price-unit').style.display = "none";
-                document.getElementById('error-output').innerText = "Systemfejl: " + e.name + " - " + e.message;
+                document.getElementById('error-output').innerText = "Fejl ved hentning: " + e.message;
             }
         }
 
@@ -152,7 +152,6 @@
                 else if (hour >= 6 && hour < 24) netTariff = 0.21;
             }
 
-            // Marginal difference for Konstant (Ebeltoft) vs N1/Dinel (Hadsten)
             if (location === 'ebeltoft') netTariff *= 1.04; 
 
             const elafgift = 0.761; 
@@ -161,11 +160,7 @@
         }
 
         function updateUI() {
-            if (!globalRecords.length) {
-                document.getElementById('current-price').innerText = "Ingen data";
-                document.getElementById('error-output').innerText = "Kunne ikke finde priser for DK1 i dag.";
-                return;
-            }
+            if (!globalRecords.length) return;
 
             const location = document.getElementById('location-select').value;
             const now = new Date();
@@ -190,12 +185,7 @@
                     };
                 });
 
-            if(todaysData.length === 0) {
-                document.getElementById('current-price').innerText = "Ingen data";
-                document.getElementById('current-price').style.fontSize = "2.5rem";
-                document.getElementById('error-output').innerText = "Der er ikke frigivet data for denne dato endnu (" + todayStr + ").";
-                return;
-            }
+            if(todaysData.length === 0) return;
 
             const currentHourData = todaysData.find(d => d.hour === now.getHours()) || todaysData[0];
             document.getElementById('current-price').innerText = currentHourData.totalInklMoms.toFixed(2);
