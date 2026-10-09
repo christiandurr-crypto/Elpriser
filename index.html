@@ -115,8 +115,9 @@
     </div>
 
     <script>
-        // Direkte og rent kald til Energinet uden proxy
-        const API_URL = "https://api.energidataservice.dk/dataset/DayAheadPrices?limit=200";
+        // Vi bruger en CORS-proxy til at omgå Energinets serverblokering af eksterne domæner
+        const rawUrl = "https://api.energidataservice.dk/dataset/DayAheadPrices?limit=250";
+        const API_URL = `https://api.allorigins.win/raw?url=${encodeURIComponent(rawUrl)}`;
         
         let globalRecords = [];
 
@@ -129,7 +130,7 @@
                 globalRecords = (data.records || []).filter(r => r.PriceArea === "DK1");
                 
                 if (globalRecords.length === 0) {
-                    throw new Error("Ingen DK1-data fundet.");
+                    throw new Error("Ingen DK1-data fundet i datasættet.");
                 }
                 
                 updateUI();
