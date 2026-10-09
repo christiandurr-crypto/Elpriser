@@ -110,7 +110,7 @@
         </table>
 
         <footer>
-            Data hentes direkte fra <em>Energi Data Service</em> (DayAheadPrices).
+            Data hentes via proxy fra <em>Energi Data Service</em> (DayAheadPrices).
         </footer>
     </div>
 
@@ -119,17 +119,11 @@
 
         async function fetchPrices() {
             const apiUrl = "https://api.energidataservice.dk/dataset/DayAheadPrices?limit=200";
-            const proxyUrl = "https://corsproxy.io/?url=" + encodeURIComponent(apiUrl);
+            // Bruger allorigins, som er en gratis og åben proxy uden krav om API-nøgle
+            const proxyUrl = "https://api.allorigins.win/raw?url=" + encodeURIComponent(apiUrl);
 
             try {
-                // Forsøg først direkte kald
-                let res = await fetch(apiUrl).catch(() => null);
-                
-                // Hvis direkte fejler (CORS), bruges proxy automatisk
-                if (!res || !res.ok) {
-                    res = await fetch(proxyUrl);
-                }
-
+                const res = await fetch(proxyUrl);
                 if (!res.ok) throw new Error("HTTP-fejl: " + res.status);
 
                 const data = await res.json();
@@ -252,7 +246,6 @@
             });
         }
 
-        // Hent priser ved opstart
         fetchPrices();
     </script>
 </body>
