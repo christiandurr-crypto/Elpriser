@@ -31,7 +31,7 @@
         .price-unit { font-size: 1.2rem; color: var(--text-muted); font-weight: 400; }
         .breakdown { margin-top: 20px; font-size: 0.95rem; color: var(--text-muted); display: flex; justify-content: center; gap: 24px; flex-wrap: wrap;}
         .breakdown b { color: var(--text-main); }
-        .error-msg { color: #ef4444; font-size: 0.85rem; margin-top: 10px; max-width: 100%; word-wrap: break-word; }
+        .error-msg { color: #ef4444; font-size: 0.85rem; margin-top: 10px; word-wrap: break-word; }
 
         .stats { display: flex; gap: 16px; margin-bottom: 24px; }
         .stat-card { flex: 1; background: var(--card-bg); padding: 16px; border-radius: 12px; text-align: center; border: 1px solid var(--border-col); }
@@ -115,26 +115,31 @@
     </div>
 
     <script>
-        // RTTET TIL DET AKTIVE OG NYE DATASÆT: DayAheadPrices
-        const API_URL = "https://api.energidataservice.dk/dataset/DayAheadPrices?limit=200";
+        // Vi bruger AllOrigins proxy også på GitHub for fuldstændig at omgå eventuelle browser-restriktioner mod Energinet API'et
+        const TARGET_URL = encodeURIComponent("https://api.energidataservice.dk/dataset/DayAheadPrices?limit=200");
+        const API_URL = `https://api.allorigins.win/raw?url=${TARGET_URL}`;
         
         let globalRecords = [];
 
         async function fetchPrices() {
             try {
                 const res = await fetch(API_URL);
-                if (!res.ok) {
-                    throw new Error("Server svarede med status: " + res.status);
-                }
-                const json = await res.json();
+                if (!res.ok) throw new Error("HTTP " + res.status);
                 
-                globalRecords = (json.records || []).filter(r => r.PriceArea === "DK1");
+                const data = await res.json();
+                // Håndterer både direkte JSON-array og AllOrigins indpakning
+                globalRecords = (data.records || []).filter(r => r.PriceArea === "DK1");
+                
+                if (globalRecords.length === 0) {
+                    throw new Error("Ingen DK1-data fundet i datasættet.");
+                }
+                
                 updateUI();
             } catch (e) {
                 document.getElementById('current-price').innerText = "Fejl";
                 document.getElementById('current-price').style.fontSize = "2.5rem";
                 document.getElementById('price-unit').style.display = "none";
-                document.getElementById('error-output').innerText = "Fejl ved hentning: " + e.message;
+                document.getElementById('error-output').innerText = "Kunne ikke indhente priser: " + e.message;
             }
         }
 
@@ -185,7 +190,11 @@
                     };
                 });
 
-            if(todaysData.length === 0) return;
+            if(todaysData.length === 0) {
+                document.getElementById('current-price').innerText = "Ingen data";
+                document.getElementById('error-output').innerText = "Venter på at dagens/morgendagens priser frigives af Energi Data Service.";
+                return;
+            }
 
             const currentHourData = todaysData.find(d => d.hour === now.getHours()) || todaysData[0];
             document.getElementById('current-price').innerText = currentHourData.totalInklMoms.toFixed(2);
