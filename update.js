@@ -2,12 +2,10 @@ const fs = require("fs");
 
 async function fetchPrices() {
     try {
-        const today = new Date().toISOString().slice(0, 10);
         console.log("Henter data for DK1 fra Energi Data Service...");
         
-        // Vi henter dagsaktuelle data uden begrænsninger, der kan trigge fejl
-        const url = "https://api.energidataservice.dk/dataset/DayAheadPrices?filter=" + encodeURIComponent(JSON.stringify({PriceArea: ["DK1"]})) + "&limit=100";
-        
+        // Henter de seneste poster for DK1 uden komplekse JSON-filtre i URL'en
+        const url = "https://api.energidataservice.dk/dataset/DayAheadPrices?limit=48&sort=HourDK%20DESC";
         const res = await fetch(url);
         
         if (!res.ok) {
@@ -22,24 +20,27 @@ async function fetchPrices() {
             throw new Error("Ingen DK1-poster fundet i datasættet.");
         }
         
-        const dates = [...new Set(records.map(r => r.HourDK.slice(0, 10)))];
+        // Finder den korrekte tids-streng (sikrer mod ændringer i API-feltnavne)
+        const getHourStr = (r) => r.HourDK || r.HourUTC || "";
+        
+        const dates = [...new Set(records.map(r => getHourStr(r).slice(0, 10)))].filter(d => d.length === 10);
         console.log("Fundne datoer:", dates);
         
         let daysObj = {};
         dates.forEach(d => {
-            const dayRecs = records.filter(r => r.HourDK.startsWith(d)).sort((a,b) => new Date(a.HourDK) - new Date(b.HourDK));
+            const dayRecs = records.filter(r => getHourStr(r).startsWith(d)).sort((a,b) => new Date(getHourStr(a)) - new Date(getHourStr(b)));
             if(dayRecs.length > 0) {
                 daysObj[d] = {
                     spot: dayRecs.map(r => (r.SpotPriceDKK || 0) / 1000),
                     dso: {
                         n1: { code: "C", note: "Nettarif C (Hadsten)", prices: dayRecs.map(r => {
-                            const h = new Date(r.HourDK).getHours();
-                            const isWinter = new Date(r.HourDK).getMonth() >= 9 || new Date(r.HourDK).getMonth() <= 2;
+                            const h = new Date(getHourStr(r)).getHours();
+                            const isWinter = new Date(getHourStr(r)).getMonth() >= 9 || new Date(getHourStr(r)).getMonth() <= 2;
                             return isWinter ? (h>=17&&h<21?1.25:(h>=6&&h<24?0.43:0.14)) : (h>=17&&h<21?0.56:(h>=6&&h<24?0.21:0.14));
                         })},
                         konstant: { code: "C", note: "Konstant Nettarif C (Ebeltoft)", prices: dayRecs.map(r => {
-                            const h = new Date(r.HourDK).getHours();
-                            const isWinter = new Date(r.HourDK).getMonth() >= 9 || new Date(r.HourDK).getMonth() <= 2;
+                            const h = new Date(getHourStr(r)).getHours();
+                            const isWinter = new Date(getHourStr(r)).getMonth() >= 9 || new Date(getHourStr(r)).getMonth() <= 2;
                             let base = isWinter ? (h>=17&&h<21?1.25:(h>=6&&h<24?0.43:0.14)) : (h>=17&&h<21?0.56:(h>=6&&h<24?0.21:0.14));
                             return base * 1.04;
                         })}
