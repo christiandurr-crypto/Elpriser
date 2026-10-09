@@ -7,7 +7,6 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
-<!-- Låner stilen fra din brors CSS for at sikre et rent udseende -->
 <link rel="stylesheet" href="https://nb7kn8w6c8-prog.github.io/Elpriser/elpris.css">
 </head>
 <body>
@@ -16,9 +15,9 @@
   <header>
     <h1>Elpris time for time</h1>
     <div style="margin: 10px 0;">
-      <select id="location-select" onchange="switchLocation()" style="background: #1e293b; color: #f8fafc; border: 1px solid #334155; padding: 8px 12px; border-radius: 8px; font-size: 1rem; cursor: pointer; width: 100%;">
-        <option value="hadsten">🏡 Elverhøjen, Hadsten (N1 A/S)</option>
-        <option value="ebeltoft">🏖️ Adilsvej, Ebeltoft (Konstant Net)</option>
+      <select id="location-select" style="background: #1e293b; color: #f8fafc; border: 1px solid #334155; padding: 8px 12px; border-radius: 8px; font-size: 1rem; cursor: pointer; width: 100%;">
+        <option value="hadsten">🏡 Elverhøjen 82, Hadsten (N1 A/S)</option>
+        <option value="ebeltoft">🏖️ Adilsvej 21C, Ebeltoft (Konstant Net)</option>
       </select>
     </div>
     <span class="place" id="place">Indlæser…</span>
@@ -89,33 +88,7 @@
   </footer>
 </div>
 
-<script>
-    // Konfiguration for dine to adresser med korrekte GLN-numre
-    const locations = {
-        hadsten: {
-            net: "n1",
-            netNavn: "N1 A/S",
-            gln: "5790000432707",
-            sted: "Hadsten · DK1 · N1, kategori C"
-        },
-        ebeltoft: {
-            net: "konstant",
-            netNavn: "Konstant Net A/S",
-            gln: "5790000432615",
-            sted: "Ebeltoft · DK1 · Konstant, kategori C"
-        }
-    };
-
-    // Standardvalg
-    window.ELPRIS = locations.hadsten;
-
-    function switchLocation() {
-        const val = document.getElementById('location-select').value;
-        window.ELPRIS = locations[val];
-        location.reload();
-    }
-</script>
-<!-- Henter din egen uafhængige JavaScript-fil -->
+<!-- Selvstændig logik-fil -->
 <script src="elpris.js"></script>
 </body>
 </html>
