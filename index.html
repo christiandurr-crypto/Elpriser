@@ -348,26 +348,37 @@ function tegnCo2Spark(rows,g){
 }
 
 /* ---------- stroemmix lige nu (hentes direkte, opdateres hvert 5. minut) ---------- */
-var LIVE = { data: lsGet("elpris.live", null), sidst: 0 };
+/* Energi Data Service tillader kun faa kald ad gangen pr. netvaerk (alle telefoner og computere
+   paa samme wifi deler kvoten). Derfor: kun ét kald, og ved fejl nye forsoeg med stigende pause. */
+var LIVE = { data: lsGet("elpris.live", null), sidst: 0, fejl: false, forsoeg: 0, timer: null };
 function hentLive(tving){
   var c=cfg(); if(!c) return;
   if(!tving && Date.now()-LIVE.sidst < 5*60e3) return;
   LIVE.sidst=Date.now();
-  var u=B.urls(c, iDag(), iDag());
-  hentJSON(u.mixNu).then(function(m){
-    return new Promise(function(ok){ setTimeout(ok,800); }).then(function(){ return hentJSON(u.co2Nu).catch(function(){ return null; }); })
-      .then(function(co){
-        var rec=m.records && m.records[0]; if(!rec) return;
-        LIVE.data={ mix:rec, co2:co && co.records && co.records[0] ? co.records[0].CO2Emission : null, hentet:Date.now() };
-        lsSet("elpris.live", LIVE.data);
-        tegnMix();
-      });
-  }).catch(function(){ tegnMix(); });
+  clearTimeout(LIVE.timer);
+  hentJSON(B.urls(c, iDag(), iDag()).mixNu).then(function(m){
+    var rec=m.records && m.records[0]; if(!rec) throw new Error("ingen data");
+    LIVE.data={ mix:rec, hentet:Date.now() }; LIVE.fejl=false; LIVE.forsoeg=0;
+    lsSet("elpris.live", LIVE.data);
+    tegnMix();
+  }).catch(function(){
+    LIVE.fejl=true; tegnMix();
+    var pauser=[20e3, 60e3, 180e3];
+    if(LIVE.forsoeg < pauser.length){
+      LIVE.timer=setTimeout(function(){ LIVE.sidst=0; hentLive(true); }, pauser[LIVE.forsoeg++]);
+    }
+  });
 }
 function tegnMix(){
   var L=LIVE.data, card=$("mixCard");
-  if(!L || !L.mix || Date.now()-L.hentet > 6*3600e3){ card.hidden=true; return; }
   card.hidden=false;
+  if(!L || !L.mix || Date.now()-L.hentet > 6*3600e3){
+    $("mixBody").innerHTML=""; $("mixBody").appendChild(el("div","note",
+      LIVE.fejl ? "Strømmixet kunne ikke hentes lige nu. Appen prøver igen om lidt." : "Henter strømmix…"));
+    $("mixInfoBtn").hidden=true; $("mixNote").hidden=true;
+    return;
+  }
+  $("mixInfoBtn").hidden=false;
   var m=L.mix, nf=new Intl.NumberFormat("da-DK",{maximumFractionDigits:0});
   var dele=[
     {k:"Havvind", v:m.OffshoreWindPower, c:"var(--off)"},
@@ -402,18 +413,20 @@ function tegnMix(){
   }
   linje("xin","↓","Import",ind); linje("xout","↑","Eksport",ud);
   if(xc.children.length) body.appendChild(xc);
-  if(L.co2!=null){
+  // CO2 for den aktuelle time kommer fra de gemte timedata (maalt eller Energinets prognose)
+  var rk=S.data ? timer() : [], co2Nu=rk.length && rk[0].nu ? rk[0].co2 : null;
+  if(co2Nu!=null){
     var row=el("div","co2row"), l=el("div");
-    l.appendChild(el("div","lbl","CO2 lige nu")); l.appendChild(el("b",null,nf.format(L.co2)+" g/kWh")); row.appendChild(l);
-    var r=S.data ? co2Spaend(timer()) : null;
-    if(r){ var lo=Math.min(r.min,L.co2), hi=Math.max(r.max,L.co2), lv=niveau(L.co2,lo,hi);
+    l.appendChild(el("div","lbl","CO2 denne time")); l.appendChild(el("b",null,nf.format(co2Nu)+" g/kWh")); row.appendChild(l);
+    var r=co2Spaend(rk);
+    if(r){ var lv=niveau(co2Nu,r.min,r.max);
       var pl=el("span","pill",{lo:"Lav",mid:"Middel",hi:"Høj"}[lv]); pl.style.background=FARVE[lv]; row.appendChild(pl); }
     body.appendChild(row);
   }
   var tid=new Intl.DateTimeFormat("da-DK",{timeZone:TZ,hour:"2-digit",minute:"2-digit"}).format(new Date(m.Minutes5UTC+"Z"));
   $("mixNote").innerHTML="";
   $("mixTid").textContent="Tal fra kl. "+tid+" · om tallene";
-  ["Vestdanmark (DK1).","Kilde: Energinet. Opdateres hvert 5. minut, når appen er åben.","Det er elnettets samlede blanding, ikke en garanti for jeres egen strøm. Altid Energi sælger ikke grøn strøm med oprindelsesgaranti.","CO2 Lav/Middel/Høj er målt mod de kommende timer."]
+  ["Vestdanmark (DK1).","Kilde: Energinet. Strømmixet opdateres hvert 5. minut, når appen er åben."+(Date.now()-L.hentet>30*60e3?" De viste tal er ikke helt friske, fordi den seneste hentning ikke lykkedes.":""),"Det er elnettets samlede blanding, ikke en garanti for jeres egen strøm. Altid Energi sælger ikke grøn strøm med oprindelsesgaranti.","CO2 er timens gennemsnit fra Energinet (målt, ellers prognose). Lav/Middel/Høj er målt mod de kommende timer."]
     .forEach(function(t){ $("mixNote").appendChild(el("div",null,t)); });
 }
 
