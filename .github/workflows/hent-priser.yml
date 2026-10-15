@@ -18,6 +18,7 @@ on:
 
 permissions:
   contents: write
+  issues: write   # vagthunden opretter issues
 
 concurrency:
   group: hent-priser
@@ -37,6 +38,7 @@ jobs:
       - name: Hent priser
         env:
           BACKFILL_DAYS: ${{ github.event.inputs.backfill_days || '1' }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: node scripts/hent-priser.mjs
 
       - name: Gem ændringer
@@ -50,4 +52,3 @@ jobs:
             git commit -m "Elpriser $(TZ=Europe/Copenhagen date '+%Y-%m-%d %H:%M')"
             git push
           fi
-
