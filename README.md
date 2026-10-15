@@ -30,6 +30,12 @@ Fejler en automatisk hentning, sender GitHub som standard en mail til dig.
 
 Valgt adresse, tillæg og moms gemmes på hver telefon for sig. Tillægget kommer fra `config.json` (Altid Energi: 0 øre), så der skal ikke indtastes noget.
 
+## Strømmix og CO2
+
+- **Bedste tidspunkt** viser både den billigste og den grønneste start for den valgte varighed, plus CO2 pr. time. CO2 kommer fra Energinet (målt, og ellers prognose) og gemmes af den automatiske hentning i `co2` for hvert døgn.
+- **Strømmix lige nu** (vind, sol, værker, import og eksport i Vestdanmark) og **CO2 lige nu** hentes direkte af telefonen, når appen åbnes, højst hvert 5. minut.
+- Lav/Middel/Høj for CO2 er relativt til de kommende timer, ligesom prisfarverne.
+
 ## Hvad prisen indeholder
 
 - Spotpris DK1 (gennemsnit af timens fire kvarterer) plus elselskabets tillæg

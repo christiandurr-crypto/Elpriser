@@ -9,6 +9,7 @@
      energinet:   [24]  transmissions nettarif + systemtarif + elafgift
      net:         { <adresse-id>: [24] }  netselskabets nettarif C, MED eventuel rabat trukket fra
      netRabat:    { <adresse-id>: [24] }  rabatten alene (negativ eller 0), til visning
+     co2:         [24]  g CO2/kWh i DK1 pr. time: maalt hvor det findes, ellers Energinets prognose (kan mangle)
    }
 */
 (function (root) {
@@ -42,7 +43,33 @@
      prisRecords: DatahubPricelist-records
      config: indholdet af config.json
      Returnerer { dage: {iso: doegn}, mangler: [tekst] } */
-  function byggDage(spotRecords, prisRecords, config) {
+  /* CO2: 5-minutters vaerdier -> timegennemsnit pr. dato. Maalte vaerdier vinder over prognose. */
+  function co2Timer(co2) {
+    var ud = {};
+    function laeg(records, felt) {
+      (records || []).forEach(function (r) {
+        if (r.CO2Emission == null) return;
+        var iso = r.Minutes5DK.slice(0, 10), h = parseInt(r.Minutes5DK.slice(11, 13), 10);
+        ud[iso] = ud[iso] || [];
+        var c = ud[iso][h] = ud[iso][h] || { m: 0, mn: 0, p: 0, pn: 0 };
+        if (felt === "m") { c.m += r.CO2Emission; c.mn++; } else { c.p += r.CO2Emission; c.pn++; }
+      });
+    }
+    laeg(co2 && co2.maalt, "m"); laeg(co2 && co2.prognose, "p");
+    var res = {};
+    Object.keys(ud).forEach(function (iso) {
+      var arr = [];
+      for (var h = 0; h < 24; h++) {
+        var c = ud[iso][h];
+        arr.push(!c ? null : c.mn ? Math.round(c.m / c.mn) : (c.pn ? Math.round(c.p / c.pn) : null));
+      }
+      res[iso] = arr;
+    });
+    return res;
+  }
+
+  function byggDage(spotRecords, prisRecords, config, co2) {
+    var co2PrDag = co2Timer(co2);
     var kv = {};   // iso -> 96 x {s,c}
     spotRecords.forEach(function (r) {
       if (r.DayAheadPriceDKK == null) return;
@@ -92,6 +119,7 @@
         enArr.push(r5(s));
       }
       dage[iso] = { spot: spot.map(r5), spotKvarter: q.map(r5), energinet: enArr, net: net, netRabat: netRabat };
+      if (co2PrDag[iso] && co2PrDag[iso].some(function (v) { return v != null; })) dage[iso].co2 = co2PrDag[iso];
     });
     return { dage: dage, mangler: mangler };
   }
@@ -149,6 +177,14 @@
       // saa en rabat med et nyt navn ogsaa fanges af moensteret.
       // Alle Energinets kWh-poster (lille) - til vagthunden
       energinetBred: API + "DatahubPricelist?filter=" + encodeURIComponent(JSON.stringify({ GLN_Number: [config.energinet.gln], ChargeType: ["D03"] })) + "&limit=0",
+      // CO2 for DK1 (5-minutters vaerdier): maalt og Energinets prognose
+      co2: API + "CO2Emis?filter=" + encodeURIComponent(JSON.stringify({ PriceArea: [config.prisomraade] })) +
+        "&start=" + startIso + "T00:00&end=" + slutIso + "T00:00&sort=Minutes5UTC%20asc&limit=0",
+      co2Prognose: API + "CO2EmisProg?filter=" + encodeURIComponent(JSON.stringify({ PriceArea: [config.prisomraade] })) +
+        "&start=" + startIso + "T00:00&end=" + slutIso + "T00:00&sort=Minutes5UTC%20asc&limit=0",
+      // "Lige nu" - hentes af telefonen selv
+      mixNu: API + "ElectricityProdex5MinRealtime?filter=" + encodeURIComponent(JSON.stringify({ PriceArea: [config.prisomraade] })) + "&sort=Minutes5UTC%20desc&limit=1",
+      co2Nu: API + "CO2Emis?filter=" + encodeURIComponent(JSON.stringify({ PriceArea: [config.prisomraade] })) + "&sort=Minutes5UTC%20desc&limit=1",
       netBred: function (fraIso) {
         return API + "DatahubPricelist?filter=" + encodeURIComponent(JSON.stringify({ GLN_Number: adrGln, ChargeType: ["D03"] })) +
           "&start=" + fraIso + "&limit=0";

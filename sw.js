@@ -1,6 +1,6 @@
 /* Netvaerk foerst, gemt kopi hvis telefonen er offline.
    Gaelder app-skallen og data/latest.json. Kald til Energi Data Service roeres ikke. */
-const CACHE = "elpris-v3";
+const CACHE = "elpris-v5";
 const SKAL = ["./", "index.html", "beregn.js", "config.json", "manifest.webmanifest", "apple-touch-icon.png", "icon-192.png", "icon-512.png"];
 self.addEventListener("install", e => { e.waitUntil(caches.open(CACHE).then(c => c.addAll(SKAL))); self.skipWaiting(); });
 self.addEventListener("activate", e => {

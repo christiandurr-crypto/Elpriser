@@ -15,10 +15,12 @@
 :root{
   --bg:#f6f7f5; --card:#fff; --ink:#17201a; --muted:#5d6b62; --line:#e3e7e2;
   --accent:#166534; --lo:#16a34a; --mid:#d4a017; --hi:#dc2626; --block:#2563eb; --neutral:#64748b;
+  --off:#0e7490; --on:#22a3b8; --sol:#eab308; --big:#78716c; --small:#a8a29e;
 }
 @media (prefers-color-scheme: dark){
   :root{ --bg:#0f1411; --card:#18201b; --ink:#e8eee9; --muted:#9aa89f; --line:#2a352e;
-    --accent:#4ade80; --lo:#22c55e; --mid:#eab308; --hi:#f87171; --block:#60a5fa; --neutral:#94a3b8; }
+    --accent:#4ade80; --lo:#22c55e; --mid:#eab308; --hi:#f87171; --block:#60a5fa; --neutral:#94a3b8;
+    --off:#22d3ee; --on:#67e8f9; --sol:#facc15; --big:#a8a29e; --small:#78716c; }
 }
 *{box-sizing:border-box}
 html,body{margin:0;background:var(--bg);color:var(--ink);
@@ -52,6 +54,33 @@ h1 small{font-size:12px;font-weight:400;color:var(--muted)}
 .xax{display:flex;gap:2px;margin-top:10px;font-size:10px;color:var(--muted)}
 .xax div{flex:1;min-width:0;text-align:center;overflow:visible;white-space:nowrap}
 .detail{margin-top:10px;font-size:14px;min-height:20px}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.two.one{grid-template-columns:1fr}
+.two > div{border-radius:12px;padding:10px;background:var(--bg)}
+.two .k{font-size:12px;color:var(--muted)}
+.two .v{font-size:19px;font-weight:700;margin:2px 0}
+.two .s{font-size:13px;color:var(--muted)}
+.two .g .v{color:var(--lo)}
+.spark{display:flex;align-items:flex-end;gap:2px;height:46px;margin-top:6px}
+.spark i{flex:1;min-width:0;border-radius:2px 2px 0 0;opacity:.85}
+.spark i.sel{outline:2px solid var(--ink);outline-offset:1px}
+.sx{display:flex;gap:2px;font-size:10px;color:var(--muted);margin-top:4px}
+.sx div{flex:1;min-width:0;text-align:center;white-space:nowrap}
+.headline{display:flex;align-items:baseline;gap:10px;margin:4px 0 10px}
+.headline b{font-size:30px;letter-spacing:-.5px}
+.headline span{color:var(--muted);font-size:14px}
+.mix{display:flex;height:22px;border-radius:6px;overflow:hidden;gap:2px}
+.mix i{display:block}
+.leg{display:grid;grid-template-columns:1fr auto auto;gap:4px 10px;margin-top:10px;font-size:14px;font-variant-numeric:tabular-nums}
+.leg .n{color:var(--muted);text-align:right}
+.leg .p{text-align:right;font-weight:600}
+.dot{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:6px;vertical-align:-1px}
+.xch2{margin-top:12px;padding-top:10px;border-top:1px solid var(--line);font-size:14px;display:grid;gap:6px}
+.xch2 div{display:flex;flex-direction:column}
+.xch2 .n2{font-size:13px;color:var(--muted)}
+.xin{color:var(--lo);font-weight:600} .xout{font-weight:600}
+.co2row{display:flex;justify-content:space-between;align-items:center;margin-top:12px;padding-top:10px;border-top:1px solid var(--line)}
+.co2row b{font-size:22px}
 .legend{display:flex;gap:12px;font-size:12px;color:var(--muted);margin-top:6px;flex-wrap:wrap}
 .legend i{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:4px;vertical-align:-1px}
 table{width:100%;border-collapse:collapse;font-size:14px;font-variant-numeric:tabular-nums;margin-top:8px}
@@ -84,10 +113,21 @@ button.link{background:none;border:0;color:var(--accent);font:inherit;font-size:
   </section>
 
   <section class="card">
-    <div class="lbl">Billigste tidspunkt at starte</div>
+    <div class="lbl">Bedste tidspunkt at starte</div>
     <div class="chips" id="durChips"></div>
-    <div class="res" id="blockRes">–</div>
+    <div class="two" id="bestBoxes"></div>
     <div class="note" id="blockNote"></div>
+    <div id="co2Wrap" hidden>
+      <div class="lbl" style="margin-top:12px;font-size:12px">CO2 pr. time (g/kWh), prognose fra Energinet</div>
+      <div class="spark" id="spark"></div>
+      <div class="sx" id="sx"></div>
+    </div>
+  </section>
+
+  <section class="card" id="mixCard" hidden>
+    <div class="lbl">Sådan produceres strømmen lige nu · Vestdanmark</div>
+    <div id="mixBody"></div>
+    <div class="note" id="mixNote"></div>
   </section>
 
   <section class="card">
@@ -218,6 +258,7 @@ function direkte(){
     return hentJSON(u.spot).then(function(sj){
       return hentJSON(u.priser).then(function(pj){
         var r=B.byggDage(sj.records, pj.records, c);
+        Object.keys(r.dage).forEach(function(k){ var gl=S.data&&S.data.dage&&S.data.dage[k]; if(gl&&gl.co2&&!r.dage[k].co2) r.dage[k].co2=gl.co2; });
         var dage=Object.assign({}, S.data && S.data.dage || {}, r.dage);
         brug({ genereret:new Date().toISOString(), config:c, dage:dage }, "direkte");
       });
@@ -250,7 +291,7 @@ function timer(){
     for(var h=(iso===i?nu:0); h<24; h++){
       var s=d.spot[h]; if(s==null) continue;
       var stroem=(s+t)*m, tr=(d.energinet[h]+net[h])*m;
-      ud.push({iso:iso,h:h,stroem:stroem,tarif:tr,total:stroem+tr,nu:(iso===i&&h===nu)});
+      ud.push({iso:iso,h:h,stroem:stroem,tarif:tr,total:stroem+tr,nu:(iso===i&&h===nu),co2:(d.co2&&d.co2[h]!=null)?d.co2[h]:null});
     }
   });
   return ud;
@@ -264,6 +305,103 @@ function billigsteBlok(rows,n){
   }
   var nuSum=0; for(var k=0;k<n;k++) nuSum+=rows[k].total;
   return {i:best.i,n:n,start:rows[best.i],slut:rows[best.i+n-1],snit:best.sum/n,nuSnit:nuSum/n};
+}
+
+function groennesteBlok(rows,n){
+  var best=null;
+  for(var i=0;i+n<=rows.length;i++){
+    var c=0,p=0,ok=true;
+    for(var j=i;j<i+n;j++){ if(rows[j].co2==null){ ok=false; break; } c+=rows[j].co2; p+=rows[j].total; }
+    if(ok && (!best || c<best.c-1e-9)) best={i:i,c:c,p:p};
+  }
+  if(!best) return null;
+  return {i:best.i,n:n,start:rows[best.i],slut:rows[best.i+n-1],snitCo2:best.c/n,snitPris:best.p/n};
+}
+function co2Spaend(rows){
+  var v=rows.map(function(x){return x.co2;}).filter(function(x){return x!=null;});
+  return v.length ? {min:Math.min.apply(null,v), max:Math.max.apply(null,v)} : null;
+}
+function tegnCo2Spark(rows,g){
+  var sp=$("spark"), sx=$("sx"); sp.innerHTML=""; sx.innerHTML="";
+  var r=co2Spaend(rows);
+  $("co2Wrap").hidden=!r;
+  if(!r) return;
+  rows.forEach(function(x,i){
+    var bar=el("i");
+    if(x.co2==null){ bar.style.height="4%"; bar.style.background="var(--line)"; }
+    else { bar.style.height=Math.max(8,x.co2/Math.max(r.max,1)*100)+"%"; bar.style.background=FARVE[niveau(x.co2,r.min,r.max)]; }
+    if(g && i>=g.i && i<g.i+g.n) bar.className="sel";
+    bar.title=dagNavn(x.iso)+" "+hh(x.h)+(x.co2!=null?": "+x.co2+" g/kWh":"");
+    sp.appendChild(bar);
+    sx.appendChild(el("div",null,(x.h%3===0)?String(x.h):""));
+  });
+}
+
+/* ---------- stroemmix lige nu (hentes direkte, opdateres hvert 5. minut) ---------- */
+var LIVE = { data: lsGet("elpris.live", null), sidst: 0 };
+function hentLive(tving){
+  var c=cfg(); if(!c) return;
+  if(!tving && Date.now()-LIVE.sidst < 5*60e3) return;
+  LIVE.sidst=Date.now();
+  var u=B.urls(c, iDag(), iDag());
+  hentJSON(u.mixNu).then(function(m){
+    return new Promise(function(ok){ setTimeout(ok,800); }).then(function(){ return hentJSON(u.co2Nu).catch(function(){ return null; }); })
+      .then(function(co){
+        var rec=m.records && m.records[0]; if(!rec) return;
+        LIVE.data={ mix:rec, co2:co && co.records && co.records[0] ? co.records[0].CO2Emission : null, hentet:Date.now() };
+        lsSet("elpris.live", LIVE.data);
+        tegnMix();
+      });
+  }).catch(function(){ tegnMix(); });
+}
+function tegnMix(){
+  var L=LIVE.data, card=$("mixCard");
+  if(!L || !L.mix || Date.now()-L.hentet > 6*3600e3){ card.hidden=true; return; }
+  card.hidden=false;
+  var m=L.mix, nf=new Intl.NumberFormat("da-DK",{maximumFractionDigits:0});
+  var dele=[
+    {k:"Havvind", v:m.OffshoreWindPower, c:"var(--off)"},
+    {k:"Landvind", v:m.OnshoreWindPower, c:"var(--on)"},
+    {k:"Sol", v:m.SolarPower, c:"var(--sol)"},
+    {k:"Store kraftværker", v:m.ProductionGe100MW, c:"var(--big)"},
+    {k:"Mindre værker", v:m.ProductionLt100MW, c:"var(--small)"}
+  ].map(function(x){ x.v=Math.max(0,x.v||0); return x; });
+  var tot=dele.reduce(function(s,x){return s+x.v;},0)||1;
+  var vind=(dele[0].v+dele[1].v)/tot*100;
+  var body=$("mixBody"); body.innerHTML="";
+  var hl=el("div","headline"); hl.appendChild(el("b",null,nf.format(vind)+" % vind")); hl.appendChild(el("span",null,nf.format(tot)+" MW i alt")); body.appendChild(hl);
+  var bar=el("div","mix"); dele.forEach(function(x){ if(x.v<=0) return; var i=el("i"); i.style.flex=String(x.v); i.style.background=x.c; bar.appendChild(i); }); body.appendChild(bar);
+  var lg=el("div","leg");
+  dele.forEach(function(x){
+    var a=el("div"); var d=el("span","dot"); d.style.background=x.c; a.appendChild(d); a.appendChild(document.createTextNode(x.k));
+    lg.appendChild(a); lg.appendChild(el("div","n",nf.format(x.v)+" MW")); lg.appendChild(el("div","p",nf.format(x.v/tot*100)+" %"));
+  });
+  body.appendChild(lg);
+  // Positive tal = import til DK1, negative = eksport
+  var lande=[["Norge",m.ExchangeNorway],["Sverige",m.ExchangeSweden],["Tyskland",m.ExchangeGermany],["Holland",m.ExchangeNetherlands],["Storbritannien",m.ExchangeGreatBritain],["Østdanmark",m.ExchangeGreatBelt]]
+    .filter(function(x){ return x[1]!=null && Math.abs(x[1])>=1; });
+  var ind=lande.filter(function(x){return x[1]>0;}).sort(function(a,b){return b[1]-a[1];});
+  var ud=lande.filter(function(x){return x[1]<0;}).sort(function(a,b){return a[1]-b[1];});
+  var xc=el("div","xch2");
+  function linje(cls,pil,navn,liste){
+    if(!liste.length) return;
+    var sum=liste.reduce(function(s,x){return s+Math.abs(x[1]);},0);
+    var d=el("div"); d.appendChild(el("span",cls,pil+" "+navn+" "+nf.format(sum)+" MW"));
+    d.appendChild(el("span","n2",liste.map(function(x){return x[0]+" "+nf.format(Math.abs(x[1]));}).join(" · ")));
+    xc.appendChild(d);
+  }
+  linje("xin","↓","Import",ind); linje("xout","↑","Eksport",ud);
+  if(xc.children.length) body.appendChild(xc);
+  if(L.co2!=null){
+    var row=el("div","co2row"), l=el("div");
+    l.appendChild(el("div","lbl","CO2 lige nu")); l.appendChild(el("b",null,nf.format(L.co2)+" g/kWh")); row.appendChild(l);
+    var r=S.data ? co2Spaend(timer()) : null;
+    if(r){ var lo=Math.min(r.min,L.co2), hi=Math.max(r.max,L.co2), lv=niveau(L.co2,lo,hi);
+      var pl=el("span","pill",{lo:"Lav",mid:"Middel",hi:"Høj"}[lv]); pl.style.background=FARVE[lv]; row.appendChild(pl); }
+    body.appendChild(row);
+  }
+  var tid=new Intl.DateTimeFormat("da-DK",{timeZone:TZ,hour:"2-digit",minute:"2-digit"}).format(new Date(m.Minutes5UTC+"Z"));
+  $("mixNote").textContent="Tal fra kl. "+tid+". Kilde: Energinet, opdateres hvert 5. minut. Det er elnettets blanding i Vestdanmark, ikke en garanti for jeres egen strøm. CO2-niveauet er målt mod de kommende timer.";
 }
 
 /* ---------- tegning ---------- */
@@ -299,7 +437,7 @@ function tegn(){
   if(document.activeElement!==$("markup")) $("markup").value=Math.round(tillaegKr()*1000)/10;
 
   var rows=timer();
-  if(!rows.length){ $("nowPrice").textContent="–"; $("chart").innerHTML=""; $("xax").innerHTML=""; $("blockRes").textContent="–"; tegnStempel(); return; }
+  if(!rows.length){ $("nowPrice").textContent="–"; $("chart").innerHTML=""; $("xax").innerHTML=""; $("bestBoxes").innerHTML=""; tegnStempel(); return; }
 
   var tot=rows.map(function(x){return x.total;});
   var min=Math.min.apply(null,tot), max=Math.max.apply(null,tot);
@@ -312,20 +450,31 @@ function tegn(){
   pill.hidden=false; pill.textContent=TEKST[lv]; pill.style.background=FARVE[lv];
   $("nowSplit").textContent="Strøm "+nf2.format(nu.stroem)+" + transport og afgifter "+nf2.format(nu.tarif)+" kr. "+(S.moms?"inkl.":"ekskl.")+" moms";
 
-  // billigste blok
-  var b=billigsteBlok(rows,S.varighed);
+  // bedste tidspunkt: billigst og groennest
+  var b=billigsteBlok(rows,S.varighed), g=groennesteBlok(rows,S.varighed);
+  var bx=$("bestBoxes"); bx.innerHTML="";
+  function startTekst(blk){ return (blk.i===0 && nu.nu) ? "Start nu" : dagNavn(blk.start.iso)+" "+hh(blk.start.h); }
+  function boks(cls,k,v,s1){ var d=el("div",cls); d.appendChild(el("div","k",k)); d.appendChild(el("div","v",v)); d.appendChild(el("div","s",s1)); bx.appendChild(d); }
   if(b){
-    var startTxt=(b.i===0 && nu.nu) ? "Start nu" : "Start "+dagNavn(b.start.iso).toLowerCase()+" kl. "+hh(b.start.h);
-    $("blockRes").innerHTML="";
-    $("blockRes").appendChild(document.createTextNode(startTxt));
-    $("blockRes").appendChild(el("span","sub","Færdig kl. "+hh((b.slut.h+1)%24)+" · snit "+nf2.format(b.snit)+" kr./kWh"));
+    var faerdig=" · færdig "+hh((b.slut.h+1)%24);
+    if(g && g.i===b.i){
+      bx.className="two one";
+      boks("g","Billigst og grønnest",startTekst(b),"snit "+nf2.format(b.snit)+" kr./kWh · "+nf0.format(g.snitCo2)+" g CO2/kWh"+faerdig);
+    } else {
+      bx.className="two";
+      boks("","Billigst",startTekst(b),"snit "+nf2.format(b.snit)+" kr./kWh"+faerdig);
+      if(g) boks("g","Grønnest",startTekst(g),"snit "+nf0.format(g.snitCo2)+" g CO2/kWh · "+nf2.format(g.snitPris)+" kr.");
+      else bx.className="two one";
+    }
     var spar=(b.nuSnit-b.snit)*100;
     $("blockNote").textContent = b.i===0 ? "Nu er det billigste tidspunkt inden for de priser, der er kendt."
       : "Starter du nu i stedet: snit "+nf2.format(b.nuSnit)+" kr./kWh ("+nf0.format(spar)+" øre/kWh dyrere). Fx 10 kWh = "+nf2.format(spar/100*10)+" kr. sparet.";
   } else {
-    $("blockRes").textContent="For få kendte timer";
-    $("blockNote").textContent="Der er kun priser for "+rows.length+" timer frem. Morgendagens priser kommer normalt omkring kl. 13.";
+    bx.className="two one";
+    boks("","Billigst","For få kendte timer","Der er kun priser for "+rows.length+" timer frem");
+    $("blockNote").textContent="Morgendagens priser kommer normalt omkring kl. 13.";
   }
+  tegnCo2Spark(rows,g);
 
   // graf
   var ch=$("chart"), xa=$("xax"); ch.innerHTML=""; xa.innerHTML="";
@@ -360,14 +509,17 @@ function tegn(){
   // prisgrundlag
   var a=adresse(), d0=S.data.dage[nu.iso], m=mf();
   var trin=[]; d0.net[a.id].forEach(function(p){ if(trin.indexOf(p)<0) trin.push(p); }); trin.sort(function(x,y){return x-y;});
+  var rTrin=[]; ((d0.netRabat||{})[a.id]||[]).forEach(function(p){ if(p && rTrin.indexOf(p)<0) rTrin.push(p); }); rTrin.sort(function(x,y){return y-x;});
   var bx=$("basis"); bx.innerHTML="";
   [ c.elselskab.navn+": spotpris + "+nf2.format(tillaegKr()*m*100)+" øre/kWh i tillæg",
-    a.net+" nettarif C: "+trin.map(function(p){return nf2.format(p*m*100);}).join(" / ")+" øre/kWh afhængigt af tidspunkt",
+    a.net+" nettarif C"+(rTrin.length?" efter rabat":"")+": "+trin.map(function(p){return nf2.format(p*m*100);}).join(" / ")+" øre/kWh afhængigt af tidspunkt",
+    rTrin.length ? "Heraf rabat fra "+a.net+": "+rTrin.map(function(p){return nf2.format(p*m*100);}).join(" / ")+" øre/kWh" : null,
     "Energinet (transmission, system) og elafgift: "+nf2.format(d0.energinet[0]*m*100)+" øre/kWh"
-  ].forEach(function(l){ bx.appendChild(el("div",null,l)); });
+  ].forEach(function(l){ if(l) bx.appendChild(el("div",null,l)); });
 
   tegnStempel();
   if(S.hist && $("histDetails").open) tegnHistorik();
+  tegnMix();
 }
 function tegnStempel(){
   if(!S.data || !S.data.genereret) return;
@@ -421,10 +573,10 @@ $("markup").addEventListener("input",function(){ var v=parseFloat(this.value); S
 $("vat").addEventListener("change",function(){ S.moms=this.checked; lsSet("elpris.moms",S.moms); tegn(); });
 $("reload").addEventListener("click",function(){ opdater(true); });
 $("histDetails").addEventListener("toggle",function(){ if(this.open){ if(S.hist) tegnHistorik(); else hentHistorik(); } });
-document.addEventListener("visibilitychange",function(){ if(!document.hidden){ tegn(); opdater(false); } });
-setInterval(function(){ if(!document.hidden){ tegn(); opdater(false); } },60000);
-tegn();          // vis gemte priser med det samme
-opdater(true);   // og hent nye i baggrunden
+document.addEventListener("visibilitychange",function(){ if(!document.hidden){ tegn(); opdater(false); hentLive(false); } });
+setInterval(function(){ if(!document.hidden){ tegn(); opdater(false); hentLive(false); } },60000);
+tegn(); tegnMix();   // vis gemte data med det samme
+opdater(true).then(function(){ hentLive(true); });   // og hent nye i baggrunden
 if("serviceWorker" in navigator && location.protocol==="https:"){ navigator.serviceWorker.register("sw.js").catch(function(){}); }
 })();
 </script>
