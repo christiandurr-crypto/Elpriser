@@ -49,7 +49,12 @@ const bred = await hentJSON(u.netBred(B.plusDage(start, -200)), "netbred.json").
 const kendte = new Set(config.adresser.flatMap((a) => (a.rabat && a.rabat.kendteNavne) || []));
 const nyeRabatter = [...new Set(bred.records.filter((r) => config.adresser.some((a) => a.rabat && new RegExp(a.rabat.moenster, "i").test(r.Note)) && !kendte.has(r.Note)).map((r) => r.Note))];
 if (nyeRabatter.length) console.log("Bemaerk: rabatnavne der ikke staar i config.json (bruges alligevel her, men ikke i sidens reserve-hentning): " + nyeRabatter.join(" | "));
-const { dage, mangler } = B.byggDage(spot.records, priser.records.concat(bred.records), config);
+// CO2 for DK1: maalt og prognose. Mangler den, gemmes priserne alligevel.
+const co2 = {
+  maalt: (await hentJSON(u.co2, "co2.json").catch((e) => { console.log("Advarsel: CO2 maalt: " + e.message); return { records: [] }; })).records,
+  prognose: (await hentJSON(u.co2Prognose, "co2prog.json").catch((e) => { console.log("Advarsel: CO2 prognose: " + e.message); return { records: [] }; })).records
+};
+const { dage, mangler } = B.byggDage(spot.records, priser.records.concat(bred.records), config, co2);
 if (mangler.length) console.log("Dage uden komplette tariffer (springes over):\n  " + mangler.join("\n  "));
 console.log(`Byggede ${Object.keys(dage).length} doegn`);
 
