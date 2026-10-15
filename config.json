@@ -6,8 +6,16 @@
     "poster": ["Transmissions nettarif", "Systemtarif", "Elafgift"]
   },
   "adresser": [
-    { "id": "hadsten",  "navn": "Hadsten",  "net": "N1 A/S",           "gln": ["5790001089030", "5790000611003"], "tarifNote": "Nettarif C" },
-    { "id": "ebeltoft", "navn": "Ebeltoft", "net": "Konstant Net A/S", "gln": ["5790000704842", "5790000683345"], "tarifNote": "Nettarif C" }
+    {
+      "id": "hadsten", "navn": "Hadsten", "net": "N1 A/S",
+      "gln": ["5790001089030", "5790000611003"], "tarifNote": "Nettarif C",
+      "rabat": { "moenster": "^Rabat (på )?nettarif N1", "kendteNavne": ["Rabat på nettarif N1 A/S", "Rabat nettarif N1 A/S"] }
+    },
+    {
+      "id": "ebeltoft", "navn": "Ebeltoft", "net": "Konstant Net A/S",
+      "gln": ["5790000704842", "5790000683345"], "tarifNote": "Nettarif C",
+      "rabat": { "moenster": "^Rabat (på )?Nettarif C\\s+-", "kendteNavne": ["Rabat på Nettarif C -  KONSTANT Net A/S", "Rabat Nettarif C -  KONSTANT Net A/S"] }
+    }
   ],
   "historikMaaneder": 13
 }
