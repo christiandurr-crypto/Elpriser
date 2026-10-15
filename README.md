@@ -32,8 +32,9 @@ Valgt adresse, tillæg og moms gemmes på hver telefon for sig. Tillægget komme
 
 ## Strømmix og CO2
 
-- **Bedste tidspunkt** viser både den billigste og den grønneste start for den valgte varighed, plus CO2 pr. time. CO2 kommer fra Energinet (målt, og ellers prognose) og gemmes af den automatiske hentning i `co2` for hvert døgn.
-- **Strømmix lige nu** (vind, sol, værker, import og eksport i Vestdanmark) og **CO2 lige nu** hentes direkte af telefonen, når appen åbnes, højst hvert 5. minut.
+- **Bedste tidspunkt** viser den billigste og den grønneste start for den valgte varighed. Begge blokke er markeret i prisgrafen (blå = billigst, grøn = grønnest).
+- CO2 pr. time kommer fra Energinet (målt, og ellers prognose) og gemmes af den automatiske hentning i `co2` for hvert døgn.
+- **Strømmix lige nu** (vind, sol, værker, import og eksport i Vestdanmark) og **CO2 lige nu** hentes direkte af telefonen, når appen åbnes, højst hvert 5. minut. Linjen "Tal fra kl. … · om tallene" nederst i kortet folder en forklaring ud.
 - Lav/Middel/Høj for CO2 er relativt til de kommende timer, ligesom prisfarverne.
 
 ## Hvad prisen indeholder
