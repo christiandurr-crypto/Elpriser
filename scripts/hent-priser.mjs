@@ -10,6 +10,7 @@ import { readFile, writeFile, mkdir, readdir, unlink } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { vagthund } from "./vagthund.mjs";
 
 const ROD = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 await import(path.join(ROD, "beregn.js"));          // saetter globalThis.ElprisBeregn
@@ -40,7 +41,15 @@ const u = B.urls(config, start, slut);
 console.log(`Henter ${start} til ${slut} (i dag: ${iDag})`);
 const spot = await hentJSON(u.spot, "spot.json");
 const priser = await hentJSON(u.priser, "pricelist.json");
-const { dage, mangler } = B.byggDage(spot.records, priser.records, config);
+// Alle netselskabs-tariffer i perioden, saa rabatter med nye navne ogsaa kommer med
+const bred = await hentJSON(u.netBred(B.plusDage(start, -200)), "netbred.json").catch((e) => {
+  console.log("Advarsel: kunne ikke hente alle nettariffer (" + e.message + ") - bruger kun kendte rabatnavne.");
+  return { records: [] };
+});
+const kendte = new Set(config.adresser.flatMap((a) => (a.rabat && a.rabat.kendteNavne) || []));
+const nyeRabatter = [...new Set(bred.records.filter((r) => config.adresser.some((a) => a.rabat && new RegExp(a.rabat.moenster, "i").test(r.Note)) && !kendte.has(r.Note)).map((r) => r.Note))];
+if (nyeRabatter.length) console.log("Bemaerk: rabatnavne der ikke staar i config.json (bruges alligevel her, men ikke i sidens reserve-hentning): " + nyeRabatter.join(" | "));
+const { dage, mangler } = B.byggDage(spot.records, priser.records.concat(bred.records), config);
 if (mangler.length) console.log("Dage uden komplette tariffer (springes over):\n  " + mangler.join("\n  "));
 console.log(`Byggede ${Object.keys(dage).length} doegn`);
 
@@ -93,6 +102,14 @@ if (!samme) {
   aendret++;
 }
 console.log(`${aendret} fil(er) opdateret. latest.json indeholder: ${Object.keys(seneste).join(", ")}`);
+
+// ---------- vagthund ----------
+try {
+  const enBred = await hentJSON(u.energinetBred, "energinetbred.json").catch(() => ({ records: [] }));
+  await vagthund({ B, config, records: priser.records.concat(bred.records, enBred.records), iDag, dataDir: DATA });
+} catch (e) {
+  console.log("Vagthund fejlede (priserne er gemt alligevel): " + (e.stack || e));
+}
 
 if (!seneste[iDag]) {
   console.error(`FEJL: ingen komplette priser for i dag (${iDag}).`);
