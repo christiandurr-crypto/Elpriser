@@ -183,8 +183,9 @@
       co2Prognose: API + "CO2EmisProg?filter=" + encodeURIComponent(JSON.stringify({ PriceArea: [config.prisomraade] })) +
         "&start=" + startIso + "T00:00&end=" + slutIso + "T00:00&sort=Minutes5UTC%20asc&limit=0",
       // "Lige nu" - hentes af telefonen selv
-      mixNu: API + "ElectricityProdex5MinRealtime?filter=" + encodeURIComponent(JSON.stringify({ PriceArea: [config.prisomraade] })) + "&sort=Minutes5UTC%20desc&limit=1",
-      co2Nu: API + "CO2Emis?filter=" + encodeURIComponent(JSON.stringify({ PriceArea: [config.prisomraade] })) + "&sort=Minutes5UTC%20desc&limit=1",
+      // Energinets anbefaling: hoejst 1 kald pr. opdatering (5 min) og med start=now-PT15M
+      mixNu: API + "ElectricityProdex5MinRealtime?start=now-PT15M&filter=" + encodeURIComponent(JSON.stringify({ PriceArea: [config.prisomraade] })) + "&sort=Minutes5UTC%20desc&limit=1",
+      co2Nu: API + "CO2Emis?start=now-PT15M&filter=" + encodeURIComponent(JSON.stringify({ PriceArea: [config.prisomraade] })) + "&sort=Minutes5UTC%20desc&limit=1",
       netBred: function (fraIso) {
         return API + "DatahubPricelist?filter=" + encodeURIComponent(JSON.stringify({ GLN_Number: adrGln, ChargeType: ["D03"] })) +
           "&start=" + fraIso + "&limit=0";

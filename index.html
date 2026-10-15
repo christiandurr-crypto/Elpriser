@@ -348,8 +348,9 @@ function tegnCo2Spark(rows,g){
 }
 
 /* ---------- stroemmix lige nu (hentes direkte, opdateres hvert 5. minut) ---------- */
-/* Energi Data Service tillader kun faa kald ad gangen pr. netvaerk (alle telefoner og computere
-   paa samme wifi deler kvoten). Derfor: kun ét kald, og ved fejl nye forsoeg med stigende pause. */
+/* Energi Data Service har graenser for antal kald pr. datasaet og kan blokere en IP-adresse ved for
+   mange kald. Alle enheder paa samme wifi deler IP. Derfor: ét kald hoejst hvert 5. minut, og ved
+   fejl nye forsoeg efter 5 og 10 minutter. */
 var LIVE = { data: lsGet("elpris.live", null), sidst: 0, fejl: false, forsoeg: 0, timer: null };
 function hentLive(tving){
   var c=cfg(); if(!c) return;
@@ -363,7 +364,7 @@ function hentLive(tving){
     tegnMix();
   }).catch(function(){
     LIVE.fejl=true; tegnMix();
-    var pauser=[20e3, 60e3, 180e3];
+    var pauser=[5*60e3, 10*60e3];   // ikke hurtigere: for mange kald kan faa Energinet til at blokere netvaerket
     if(LIVE.forsoeg < pauser.length){
       LIVE.timer=setTimeout(function(){ LIVE.sidst=0; hentLive(true); }, pauser[LIVE.forsoeg++]);
     }
