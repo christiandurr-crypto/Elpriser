@@ -1,1 +1,53 @@
+name: Hent elpriser
+
+on:
+  schedule:
+    # Tider er UTC. Morgendagens spotpriser kommer ca. kl. 13 dansk tid
+    # (11 UTC om sommeren, 12 UTC om vinteren). GitHub kan forsinke koersler 5-30 min.
+    - cron: "17 11 * * *"
+    - cron: "17 12 * * *"
+    - cron: "47 13 * * *"
+    - cron: "47 16 * * *"
+    - cron: "33 22 * * *"
+  workflow_dispatch:
+    inputs:
+      backfill_days:
+        description: "Antal dage bagud der skal hentes (fx 366 første gang)"
+        required: false
+        default: "1"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: hent-priser
+  cancel-in-progress: false
+
+jobs:
+  hent:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Hent priser
+        env:
+          BACKFILL_DAYS: ${{ github.event.inputs.backfill_days || '1' }}
+        run: node scripts/hent-priser.mjs
+
+      - name: Gem ændringer
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data
+          if git diff --cached --quiet; then
+            echo "Ingen nye priser."
+          else
+            git commit -m "Elpriser $(TZ=Europe/Copenhagen date '+%Y-%m-%d %H:%M')"
+            git push
+          fi
 
