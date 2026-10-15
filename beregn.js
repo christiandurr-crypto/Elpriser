@@ -7,7 +7,8 @@
      spot:        [24]  timegennemsnit af spotprisen (null hvis timen mangler, fx ved sommertid)
      spotKvarter: [96]  spotpris pr. kvarter (til senere batteri/solcelle-styring)
      energinet:   [24]  transmissions nettarif + systemtarif + elafgift
-     net:         { <adresse-id>: [24] }  netselskabets nettarif C
+     net:         { <adresse-id>: [24] }  netselskabets nettarif C, MED eventuel rabat trukket fra
+     netRabat:    { <adresse-id>: [24] }  rabatten alene (negativ eller 0), til visning
    }
 */
 (function (root) {
@@ -26,12 +27,16 @@
     return p == null ? (r.Price1 || 0) : p;
   }
   function find(poster, gln, note, iso) {
+    var test = typeof note === "string" ? function (n) { return n === note; } : function (n) { return note.test(n); };
     for (var i = 0; i < poster.length; i++) {
       var r = poster[i];
-      if (r.GLN_Number === gln && r.Note === note && gyldig(r, iso)) return r;
+      if (r.GLN_Number === gln && test(r.Note) && gyldig(r, iso)) return r;
     }
     return null;
   }
+  /* Netselskabets rabat (fx Konstants andelsrabat). Navnet skifter over tid,
+     derfor et moenster i config.json frem for et fast navn. */
+  function rabatMoenster(a) { return a.rabat && a.rabat.moenster ? new RegExp(a.rabat.moenster, "i") : null; }
 
   /* spotRecords: DayAheadPrices-records (TimeDK, DayAheadPriceDKK)
      prisRecords: DatahubPricelist-records
@@ -65,14 +70,18 @@
       var fejl = [];
       en.forEach(function (p, i) { if (!p) fejl.push("Energinet " + config.energinet.poster[i]); });
 
-      var net = {};
+      var net = {}, netRabat = {};
       config.adresser.forEach(function (a) {
-        var p = null;
-        for (var i = 0; i < a.gln.length && !p; i++) p = find(poster, a.gln[i], a.tarifNote, iso);
+        var p = null, gln = null;
+        for (var i = 0; i < a.gln.length && !p; i++) { p = find(poster, a.gln[i], a.tarifNote, iso); gln = a.gln[i]; }
         if (!p) { fejl.push(a.net + " " + a.tarifNote); return; }
-        var arr = [];
-        for (var h2 = 0; h2 < 24; h2++) arr.push(r5(timepris(p, h2)));
-        net[a.id] = arr;
+        var rx = rabatMoenster(a), rb = rx ? find(poster, gln, rx, iso) : null;
+        var arr = [], rArr = [];
+        for (var h2 = 0; h2 < 24; h2++) {
+          var rv = rb ? timepris(rb, h2) : 0;
+          arr.push(r5(timepris(p, h2) + rv)); rArr.push(r5(rv));
+        }
+        net[a.id] = arr; netRabat[a.id] = rArr;
       });
 
       if (fejl.length) { mangler.push(iso + ": " + fejl.join(", ")); return; }
@@ -82,9 +91,27 @@
         var s = 0; en.forEach(function (p) { s += timepris(p, h3); });
         enArr.push(r5(s));
       }
-      dage[iso] = { spot: spot.map(r5), spotKvarter: q.map(r5), energinet: enArr, net: net };
+      dage[iso] = { spot: spot.map(r5), spotKvarter: q.map(r5), energinet: enArr, net: net, netRabat: netRabat };
     });
     return { dage: dage, mangler: mangler };
+  }
+
+  /* Status for en dato uden spotpris - bruges af vagthunden til at se frem i tiden.
+     Returnerer { mangler: [tekst], rabat: { <adresse-id>: true/false } } */
+  function tarifStatus(prisRecords, config, iso) {
+    var poster = prisRecords.slice().sort(function (a, b) { return a.ValidFrom < b.ValidFrom ? 1 : -1; });
+    var mangler = [], rabat = {};
+    config.energinet.poster.forEach(function (note) {
+      if (!find(poster, config.energinet.gln, note, iso)) mangler.push("Energinet: " + note);
+    });
+    config.adresser.forEach(function (a) {
+      var p = null, gln = null;
+      for (var i = 0; i < a.gln.length && !p; i++) { p = find(poster, a.gln[i], a.tarifNote, iso); gln = a.gln[i]; }
+      if (!p) { mangler.push(a.net + ": " + a.tarifNote); rabat[a.id] = false; return; }
+      var rx = rabatMoenster(a);
+      rabat[a.id] = !!(rx && find(poster, gln, rx, iso));
+    });
+    return { mangler: mangler, rabat: rabat };
   }
 
   /* Gennemsnit for et doegn pr. adresse (ekskl. moms og tillaeg) - til historikken */
@@ -109,16 +136,25 @@
     var API = "https://api.energidataservice.dk/dataset/";
     var glns = [config.energinet.gln];
     var noter = config.energinet.poster.slice();
+    var adrGln = [];
     config.adresser.forEach(function (a) {
-      glns = glns.concat(a.gln);
-      if (noter.indexOf(a.tarifNote) < 0) noter.push(a.tarifNote);
+      glns = glns.concat(a.gln); adrGln = adrGln.concat(a.gln);
+      [a.tarifNote].concat(a.rabat && a.rabat.kendteNavne || []).forEach(function (n) { if (noter.indexOf(n) < 0) noter.push(n); });
     });
     return {
       spot: API + "DayAheadPrices?filter=" + encodeURIComponent(JSON.stringify({ PriceArea: [config.prisomraade] })) +
         "&start=" + startIso + "T00:00&end=" + slutIso + "T00:00&sort=TimeDK%20asc&limit=0",
-      priser: API + "DatahubPricelist?filter=" + encodeURIComponent(JSON.stringify({ GLN_Number: glns, Note: noter })) + "&limit=0"
+      priser: API + "DatahubPricelist?filter=" + encodeURIComponent(JSON.stringify({ GLN_Number: glns, Note: noter })) + "&limit=0",
+      // Alle kWh-tariffer for netselskaberne fra en given dato. Stor (flere MB) - kun til GitHub Action,
+      // saa en rabat med et nyt navn ogsaa fanges af moensteret.
+      // Alle Energinets kWh-poster (lille) - til vagthunden
+      energinetBred: API + "DatahubPricelist?filter=" + encodeURIComponent(JSON.stringify({ GLN_Number: [config.energinet.gln], ChargeType: ["D03"] })) + "&limit=0",
+      netBred: function (fraIso) {
+        return API + "DatahubPricelist?filter=" + encodeURIComponent(JSON.stringify({ GLN_Number: adrGln, ChargeType: ["D03"] })) +
+          "&start=" + fraIso + "&limit=0";
+      }
     };
   }
 
-  root.ElprisBeregn = { byggDage: byggDage, doegnResume: doegnResume, urls: urls, isoIDag: isoIDag, plusDage: plusDage, TZ: TZ };
+  root.ElprisBeregn = { byggDage: byggDage, tarifStatus: tarifStatus, doegnResume: doegnResume, urls: urls, isoIDag: isoIDag, plusDage: plusDage, TZ: TZ };
 })(typeof window !== "undefined" ? window : globalThis);

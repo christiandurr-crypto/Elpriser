@@ -33,7 +33,7 @@ Valgt adresse, tillæg og moms gemmes på hver telefon for sig. Tillægget komme
 ## Hvad prisen indeholder
 
 - Spotpris DK1 (gennemsnit af timens fire kvarterer) plus elselskabets tillæg
-- Nettarif C: N1 A/S (Hadsten) eller Konstant Net A/S (Ebeltoft)
+- Nettarif C: N1 A/S (Hadsten) eller Konstant Net A/S (Ebeltoft), med netselskabets eventuelle rabat trukket fra. Konstant giver i øjeblikket rabat, N1 gør ikke. Rabatten findes via et navnemønster i `config.json`, fordi navnet skifter over tid
 - Energinet: transmissions nettarif og systemtarif
 - Elafgift
 - Moms 25 % (kan slås fra)
@@ -45,6 +45,18 @@ Faste månedlige abonnementer er ikke med.
 Alt om adresser, netselskaber, elselskab og hvor længe der gemmes står i `config.json`. Siden og den automatiske hentning bruger den samme beregning (`beregn.js`).
 
 Teste hentningen lokalt (kræver Node 20+): `BACKFILL_DAYS=3 node scripts/hent-priser.mjs`
+
+## Vagthund
+
+Den automatiske hentning holder også øje med ændringer, som beregningen ikke selv kan tage stilling til. Den opretter et issue på GitHub, og så får du en mail, når:
+
+- et netselskab eller Energinet lægger en kWh-post ud med et navn, der ikke er set før
+- nettarif eller Energinet-post mangler for en af de kommende 14 dage
+- en netselskabsrabat ophører inden for 14 dage
+
+Kendte postnavne gemmes i `data/vagthund.json`. Første kørsel registrerer alt, der findes, uden at melde noget. Luk et issue, når du har taget stilling til det. Det samme fund meldes ikke igen.
+
+Vagthunden kan ikke se ændringer hos Altid Energi (tillæg og gebyrer), fordi de ikke findes i en åben datakilde.
 
 ## Bemærk
 
