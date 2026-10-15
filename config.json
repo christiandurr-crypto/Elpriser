@@ -1,0 +1,13 @@
+{
+  "prisomraade": "DK1",
+  "elselskab": { "navn": "Altid Energi", "tillaegOre": 0 },
+  "energinet": {
+    "gln": "5790000432752",
+    "poster": ["Transmissions nettarif", "Systemtarif", "Elafgift"]
+  },
+  "adresser": [
+    { "id": "hadsten",  "navn": "Hadsten",  "net": "N1 A/S",           "gln": ["5790001089030", "5790000611003"], "tarifNote": "Nettarif C" },
+    { "id": "ebeltoft", "navn": "Ebeltoft", "net": "Konstant Net A/S", "gln": ["5790000704842", "5790000683345"], "tarifNote": "Nettarif C" }
+  ],
+  "historikMaaneder": 13
+}
