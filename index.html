@@ -597,7 +597,14 @@ $("markup").addEventListener("input",function(){ var v=parseFloat(this.value); S
 $("vat").addEventListener("change",function(){ S.moms=this.checked; lsSet("elpris.moms",S.moms); tegn(); });
 $("reload").addEventListener("click",function(){ opdater(true); });
 $("histDetails").addEventListener("toggle",function(){ if(this.open){ if(S.hist) tegnHistorik(); else hentHistorik(); } });
-document.addEventListener("visibilitychange",function(){ if(!document.hidden){ tegn(); opdater(false); hentLive(false); } });
+// Appen paa hjemmeskaermen kan ligge i hukommelsen i dagevis. Har den vaeret aaben over en time,
+// genindlaeses den, naar den kommer frem igen, saa en ny version tages i brug (data vises straks fra gemt kopi).
+var STARTET=Date.now();
+document.addEventListener("visibilitychange",function(){
+  if(document.hidden) return;
+  if(Date.now()-STARTET > 3600e3 && navigator.onLine!==false){ location.reload(); return; }
+  tegn(); opdater(false); hentLive(false);
+});
 setInterval(function(){ if(!document.hidden){ tegn(); opdater(false); hentLive(false); } },60000);
 $("mixInfoBtn").addEventListener("click",function(){ var n=$("mixNote"); n.hidden=!n.hidden; this.setAttribute("aria-expanded",String(!n.hidden)); });
 tegn(); tegnMix();   // vis gemte data med det samme
