@@ -1,0 +1,35 @@
+name: Hent strømmix
+
+on:
+  schedule:
+    # Hvert 15. minut. GitHub kan forsinke eller springe koersler over, saa tallene er typisk 15-30 min gamle.
+    - cron: "*/15 * * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: hent-live
+  cancel-in-progress: true
+
+jobs:
+  hent:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Hent strømmix
+        run: node scripts/hent-live.mjs
+      - name: Gem
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data/live.json
+          git diff --cached --quiet && exit 0
+          git commit -m "Strømmix $(TZ=Europe/Copenhagen date '+%H:%M')"
+          for i in 1 2 3; do git pull --rebase && git push && exit 0; sleep 5; done
+          exit 1

@@ -50,5 +50,7 @@ jobs:
             echo "Ingen nye priser."
           else
             git commit -m "Elpriser $(TZ=Europe/Copenhagen date '+%Y-%m-%d %H:%M')"
-            git push
+            # Strømmix-hentningen kan have pushet imens - hent den foerst
+            for i in 1 2 3; do git pull --rebase && git push && exit 0; sleep 5; done
+            exit 1
           fi
