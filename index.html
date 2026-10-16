@@ -348,23 +348,21 @@ function tegnCo2Spark(rows,g){
 }
 
 /* ---------- stroemmix lige nu (hentes direkte, opdateres hvert 5. minut) ---------- */
-/* Energi Data Service har graenser for antal kald pr. datasaet og kan blokere en IP-adresse ved for
-   mange kald. Alle enheder paa samme wifi deler IP. Derfor: ét kald hoejst hvert 5. minut, og ved
-   fejl nye forsoeg efter 5 og 10 minutter. */
+/* Stroemmixet hentes af GitHub Actions ca. hvert 15. minut og ligger i data/live.json paa siden selv.
+   Telefonen kalder altsaa aldrig Energi Data Service direkte for det. */
 var LIVE = { data: lsGet("elpris.live", null), sidst: 0, fejl: false, forsoeg: 0, timer: null };
 function hentLive(tving){
-  var c=cfg(); if(!c) return;
   if(!tving && Date.now()-LIVE.sidst < 5*60e3) return;
   LIVE.sidst=Date.now();
   clearTimeout(LIVE.timer);
-  hentJSON(B.urls(c, iDag(), iDag()).mixNu).then(function(m){
-    var rec=m.records && m.records[0]; if(!rec) throw new Error("ingen data");
-    LIVE.data={ mix:rec, hentet:Date.now() }; LIVE.fejl=false; LIVE.forsoeg=0;
+  hentJSON("data/live.json", {cache:"no-cache"}).then(function(j){
+    if(!j || !j.mix) throw new Error("ingen data");
+    LIVE.data={ mix:j.mix, hentet:Date.parse(j.mix.Minutes5UTC+"Z") || Date.parse(j.hentet) }; LIVE.fejl=false; LIVE.forsoeg=0;
     lsSet("elpris.live", LIVE.data);
     tegnMix();
   }).catch(function(){
     LIVE.fejl=true; tegnMix();
-    var pauser=[5*60e3, 10*60e3];   // ikke hurtigere: for mange kald kan faa Energinet til at blokere netvaerket
+    var pauser=[60e3, 3*60e3];
     if(LIVE.forsoeg < pauser.length){
       LIVE.timer=setTimeout(function(){ LIVE.sidst=0; hentLive(true); }, pauser[LIVE.forsoeg++]);
     }
@@ -427,7 +425,7 @@ function tegnMix(){
   var tid=new Intl.DateTimeFormat("da-DK",{timeZone:TZ,hour:"2-digit",minute:"2-digit"}).format(new Date(m.Minutes5UTC+"Z"));
   $("mixNote").innerHTML="";
   $("mixTid").textContent="Tal fra kl. "+tid+" · om tallene";
-  ["Vestdanmark (DK1).","Kilde: Energinet. Strømmixet opdateres hvert 5. minut, når appen er åben."+(Date.now()-L.hentet>30*60e3?" De viste tal er ikke helt friske, fordi den seneste hentning ikke lykkedes.":""),"Det er elnettets samlede blanding, ikke en garanti for jeres egen strøm. Altid Energi sælger ikke grøn strøm med oprindelsesgaranti.","CO2 er timens gennemsnit fra Energinet (målt, ellers prognose). Lav/Middel/Høj er målt mod de kommende timer."]
+  ["Vestdanmark (DK1).","Kilde: Energinet. Strømmixet hentes ca. hvert 15. minut, så tallene er typisk 15-30 minutter gamle."+(Date.now()-L.hentet>90*60e3?" De viste tal er ældre end normalt, fordi de seneste hentninger ikke er lykkedes.":""),"Det er elnettets samlede blanding, ikke en garanti for jeres egen strøm. Altid Energi sælger ikke grøn strøm med oprindelsesgaranti.","CO2 er timens gennemsnit fra Energinet (målt, ellers prognose). Lav/Middel/Høj er målt mod de kommende timer."]
     .forEach(function(t){ $("mixNote").appendChild(el("div",null,t)); });
 }
 

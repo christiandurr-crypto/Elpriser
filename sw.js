@@ -2,7 +2,7 @@
    Gaelder app-skallen og data/latest.json. Kald til Energi Data Service roeres ikke.
    "no-cache" = spoerg altid serveren, om der er en nyere version. Saa ses en ny udgivelse
    med det samme i stedet for efter GitHub Pages' 10 minutters cache. */
-const CACHE = "elpris-v10";
+const CACHE = "elpris-v11";
 const SKAL = ["./", "index.html", "beregn.js", "config.json", "manifest.webmanifest", "apple-touch-icon.png", "icon-192.png", "icon-512.png"];
 
 self.addEventListener("install", (e) => {
