@@ -65,6 +65,7 @@ h1 small{font-size:12px;font-weight:400;color:var(--muted)}
 .two > div{border-radius:12px;padding:10px;background:var(--bg)}
 .two .k{font-size:12px;color:var(--muted)}
 .two .v{font-size:19px;font-weight:700;margin:2px 0}
+.two .t{font-size:15px;font-weight:600;margin:2px 0 4px}
 .two .s{font-size:13px;color:var(--muted)}
 .two .g .v{color:var(--lo)}
 .spark{display:flex;align-items:flex-end;gap:2px;height:46px;margin-top:6px}
@@ -177,6 +178,7 @@ button.link{background:none;border:0;color:var(--accent);font:inherit;font-size:
       <summary>Indstillinger og prisgrundlag</summary>
       <div class="setrow"><label for="markup">Tillæg fra <span id="supplier">elselskabet</span> (øre/kWh ekskl. moms)</label><input type="number" id="markup" inputmode="decimal" step="0.1" min="0"></div>
       <div class="setrow"><label for="vat">Vis priser inkl. 25 % moms</label><input type="checkbox" id="vat" checked></div>
+      <div class="setrow" style="display:block"><div style="margin-bottom:4px">Forbrug brugt til "i alt" (kWh for hele blokken)</div><div id="kwhBox"></div></div>
       <div class="setrow" style="display:block"><div id="basis" class="note" style="margin-top:0"></div></div>
       <div class="note">Data: Energi Data Service (Energinet), hentet automatisk og gemt på siden. Spotpris DK1 i kvarterer, vist som timegennemsnit. Faste abonnementer er ikke med i kWh-prisen (netabonnement, Energinet og elselskabets abonnement). <button class="link" id="reload">Hent priser igen</button></div>
     </details>
@@ -188,9 +190,10 @@ button.link{background:none;border:0;color:var(--accent);font:inherit;font-size:
 (function(){
 "use strict";
 var B = window.ElprisBeregn, TZ = B.TZ;
+// kwh = forventet forbrug i alt for hele blokken (kan rettes under Indstillinger)
 var VARIGHEDER = [
-  { t: 1, txt: "1 time" }, { t: 2, txt: "2 t · vask" }, { t: 3, txt: "3 t · opvask" },
-  { t: 4, txt: "4 timer" }, { t: 6, txt: "6 t · bil" }, { t: 8, txt: "8 timer" }
+  { t: 1, txt: "1 time", navn: "1 time", kwh: 1 }, { t: 2, txt: "2 t · vask", navn: "Vask (2 t)", kwh: 1 }, { t: 3, txt: "3 t · opvask", navn: "Opvask (3 t)", kwh: 1 },
+  { t: 4, txt: "4 timer", navn: "4 timer", kwh: 4 }, { t: 6, txt: "6 t · bil", navn: "Bil (6 t, 11 kW)", kwh: 66 }, { t: 8, txt: "8 timer", navn: "8 timer", kwh: 8 }
 ];
 
 /* ---------- smaa hjaelpere ---------- */
@@ -217,6 +220,7 @@ var S = {
   data: lsGet("elpris.data", null),     // {genereret, kilde, config, dage}
   adr: lsGet("elpris.adr", null),
   varighed: lsGet("elpris.varighed", 2),
+  kwh: lsGet("elpris.kwh", {}),   // brugerens egne kWh pr. knap, ellers VARIGHEDER.kwh
   moms: lsGet("elpris.moms", true),
   tillaegEget: lsGet("elpris.tillaegEget", null),   // null = brug config
   sidstTjekket: 0,
@@ -317,6 +321,9 @@ function billigsteBlok(rows,n){
   return {i:best.i,n:n,start:rows[best.i],slut:rows[best.i+n-1],snit:best.sum/n,nuSnit:nuSum/n};
 }
 
+function kwhFor(t){ var v=S.kwh[t]; if(v!=null && isFinite(v)) return v; for(var i=0;i<VARIGHEDER.length;i++) if(VARIGHEDER[i].t===t) return VARIGHEDER[i].kwh; return t; }
+function iAlt(snit){ return "ca. "+nf2.format(snit*kwhFor(S.varighed))+" kr. i alt"; }
+function kwhTxt(){ return String(kwhFor(S.varighed)).replace(".",",")+" kWh"; }
 function groennesteBlok(rows,n){
   var best=null;
   for(var i=0;i+n<=rows.length;i++){
@@ -479,21 +486,21 @@ function tegn(){
   var b=billigsteBlok(rows,S.varighed), g=groennesteBlok(rows,S.varighed);
   var bx=$("bestBoxes"); bx.innerHTML="";
   function startTekst(blk){ return (blk.i===0 && nu.nu) ? "Start nu" : dagNavn(blk.start.iso)+" "+hh(blk.start.h); }
-  function boks(cls,k,v,s1){ var d=el("div",cls); d.appendChild(el("div","k",k)); d.appendChild(el("div","v",v)); d.appendChild(el("div","s",s1)); bx.appendChild(d); }
+  function boks(cls,k,v,s1,tot){ var d=el("div",cls); d.appendChild(el("div","k",k)); d.appendChild(el("div","v",v)); if(tot) d.appendChild(el("div","t",tot)); d.appendChild(el("div","s",s1)); bx.appendChild(d); }
   if(b){
     var faerdig=" · færdig "+hh((b.slut.h+1)%24);
     if(g && g.i===b.i){
       bx.className="two one";
-      boks("g","Billigst og grønnest",startTekst(b),"snit "+nf2.format(b.snit)+" kr./kWh · "+nf0.format(g.snitCo2)+" g CO2/kWh"+faerdig);
+      boks("g","Billigst og grønnest",startTekst(b),kwhTxt()+" · snit "+nf2.format(b.snit)+" kr./kWh · "+nf0.format(g.snitCo2)+" g CO2/kWh"+faerdig,iAlt(b.snit));
     } else {
       bx.className="two";
-      boks("","Billigst",startTekst(b),"snit "+nf2.format(b.snit)+" kr./kWh"+faerdig);
-      if(g) boks("g","Grønnest",startTekst(g),"snit "+nf0.format(g.snitCo2)+" g CO2/kWh · "+nf2.format(g.snitPris)+" kr.");
+      boks("","Billigst",startTekst(b),kwhTxt()+" · snit "+nf2.format(b.snit)+" kr./kWh"+faerdig,iAlt(b.snit));
+      if(g) boks("g","Grønnest",startTekst(g),kwhTxt()+" · snit "+nf2.format(g.snitPris)+" kr./kWh · "+nf0.format(g.snitCo2)+" g CO2/kWh",iAlt(g.snitPris));
       else bx.className="two one";
     }
     var spar=(b.nuSnit-b.snit)*100;
     $("blockNote").textContent = b.i===0 ? "Nu er det billigste tidspunkt inden for de priser, der er kendt."
-      : "Starter du nu i stedet: snit "+nf2.format(b.nuSnit)+" kr./kWh ("+nf0.format(spar)+" øre/kWh dyrere). Fx 10 kWh = "+nf2.format(spar/100*10)+" kr. sparet.";
+      : "Starter du nu i stedet: i alt ca. "+nf2.format(b.nuSnit*kwhFor(S.varighed))+" kr. – "+nf2.format(spar/100*kwhFor(S.varighed))+" kr. dyrere end billigst.";
   } else {
     bx.className="two one";
     boks("","Billigst","For få kendte timer","Der er kun priser for "+rows.length+" timer frem");
@@ -607,6 +614,17 @@ function tegnHistorik(){
 /* ---------- start ---------- */
 $("markup").addEventListener("input",function(){ var v=parseFloat(this.value); S.tillaegEget=isFinite(v)&&v>=0?v:null; lsSet("elpris.tillaegEget",S.tillaegEget); tegn(); });
 $("vat").addEventListener("change",function(){ S.moms=this.checked; lsSet("elpris.moms",S.moms); tegn(); });
+(function(){
+  var box=$("kwhBox");
+  VARIGHEDER.forEach(function(v){
+    var r=el("div","setrow"); r.style.borderBottom="0"; r.style.padding="4px 0";
+    var id="kwh"+v.t, lab=el("label",null,v.navn); lab.setAttribute("for",id);
+    var inp=document.createElement("input"); inp.type="number"; inp.id=id; inp.min="0"; inp.step="0.1"; inp.setAttribute("inputmode","decimal");
+    inp.value=kwhFor(v.t);
+    inp.addEventListener("input",function(){ var x=parseFloat(this.value.replace(",",".")); if(isFinite(x)&&x>=0) S.kwh[v.t]=x; else delete S.kwh[v.t]; lsSet("elpris.kwh",S.kwh); tegn(); });
+    r.appendChild(lab); r.appendChild(inp); box.appendChild(r);
+  });
+})();
 $("reload").addEventListener("click",function(){ opdater(true); });
 $("histDetails").addEventListener("toggle",function(){ if(this.open){ if(S.hist) tegnHistorik(); else hentHistorik(); } });
 // Appen paa hjemmeskaermen kan ligge i hukommelsen i dagevis. Har den vaeret aaben over en time,
